@@ -1,0 +1,2 @@
+websockets>=13,<18
+pynacl>=1.5

@@ -1,0 +1,37 @@
+# Jev trading bot configuration. Secrets never go here — see README (GitHub secrets).
+
+[ctrader]
+# "demo" or "live". Start on demo.
+environment = "demo"
+# Positions opened by this bot are labelled "<prefix>_<SYMBOL>"; the bot only
+# manages positions with this prefix, so Zorro/manual trades on the same account are left alone.
+label_prefix = "jev"
+
+[jev]
+model = "jev-latest"
+# minimum probability for Jev's "open" / "close" answer to act on
+min_confidence = 0.60
+# minimum probability for the chosen direction (long/short) when opening
+min_bias = 0.55
+
+[strategy]
+# M1 M5 M15 M30 H1 H4 D1 — keep the workflow schedule in step with this
+timeframe = "H1"
+bars = 200
+# stop loss / take profit distance in ATR(14) multiples
+sl_atr = 1.5
+tp_atr = 3.0
+# max simultaneous positions opened by this bot (all symbols together)
+max_open_positions = 3
+
+[[symbols]]
+name = "EURUSD"
+lots = 0.01
+
+[[symbols]]
+name = "GBPUSD"
+lots = 0.01
+
+[[symbols]]
+name = "XAUUSD"
+lots = 0.01
