@@ -12,8 +12,6 @@ import logging
 import time
 from dataclasses import dataclass
 
-import websockets
-
 log = logging.getLogger("ctrader")
 
 HOSTS = {"demo": "demo.ctraderapi.com", "live": "live.ctraderapi.com"}
@@ -123,6 +121,8 @@ class CTraderClient:
 
     # ---- connection -------------------------------------------------------
     async def connect(self) -> None:
+        import websockets  # only the GitHub bot needs it, not the Zorro-side JevServer
+
         self._ws = await websockets.connect(self.url, max_size=16 * 1024 * 1024)
         self._tasks = [asyncio.create_task(self._reader()), asyncio.create_task(self._heartbeat())]
         log.info("connected to %s", self.url)

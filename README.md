@@ -103,3 +103,30 @@ export TYPESAFE_API_KEY=... CTRADER_CLIENT_ID=... CTRADER_CLIENT_SECRET=... \
        CTRADER_ACCESS_TOKEN=... CTRADER_ACCOUNT_ID=...
 python -m advisor.main
 ```
+
+## Zorro változat (`zorro/`)
+
+Ugyanez a Jev-döntés Zorróból, a cTrader pluginon keresztül, a MLDRIVEN/UltOsc
+mintájára (lite-C `http_transfer` → helyi Python szerver):
+
+| Fájl | Szerep |
+|---|---|
+| `zorro/JevTrader.c` | Zorro stratégia: H1 baronként elküldi az utolsó 200 bart, a válasz alapján `enterLong` / `enterShort` / `exitLong+exitShort`, ATR Stop/TakeProfit |
+| `zorro/JevServer.py` | Helyi szerver (port 5003): megkérdezi a Jevet, visszaadja: `open_long` / `open_short` / `close` / `hold` |
+| `zorro/start_jev.bat` | Szerver indítása (a régi 5003-as folyamatot leállítja) |
+
+Telepítés Windowson:
+
+1. Klónozd a repót (pl. `C:\Users\Administrator\source\repos\ai-trading-advisor`).
+   A szervernek nem kell külön csomag (Python 3.11+).
+2. API kulcs: `setx TYPESAFE_API_KEY "..."` (új ablakban érvényes), vagy írd a kulcsot
+   `zorro\jev_key.txt`-be (gitignore-ban van, nem kerül fel).
+3. Futtasd a `zorro\start_jev.bat`-ot, ellenőrzés: böngészőben `http://127.0.0.1:5003/health`.
+4. Másold a `zorro\JevTrader.c`-t a Zorro `Strategy\` mappájába, Account = cTrader, Trade.
+
+A küszöbök (`min_confidence`, `min_bias`, `sl_atr`, `tp_atr`) a `config.toml`-ból jönnek;
+a `.c` fájl tetején a `SL_ATR`/`TP_ATR`/`MAX_OPEN` és az assetlista állítható.
+Backtestben a Jev alapból nem hívódik (fizetős és nem reprodukálható) — `JEV_IN_TEST 1`-gyel bekapcsolható.
+
+**Fontos:** ha a GitHub bot és a Zorro ugyanazon a számlán ugyanazt az assetet kereskedi,
+két külön pozíció lesz. Egy assetet csak az egyik kezeljen.
