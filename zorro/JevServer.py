@@ -49,8 +49,9 @@ def api_key() -> str:
     key = os.environ.get("TYPESAFE_API_KEY", "").strip()
     if not key and (HERE / "jev_key.txt").exists():
         key = (HERE / "jev_key.txt").read_text(encoding="utf-8").strip()
-    if not key:
-        sys.exit("TYPESAFE_API_KEY hiányzik (környezeti változó vagy zorro/jev_key.txt)")
+    if not key or key == "IDE_IRD_A_JEV_API_KULCSOT":
+        sys.exit("Jev API kulcs hiányzik: nevezd át a jev_key.example.txt-t jev_key.txt-re, "
+                 "és írd bele a kulcsot (vagy állítsd be a TYPESAFE_API_KEY környezeti változót)")
     return key
 
 

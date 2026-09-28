@@ -119,8 +119,9 @@ Telepítés Windowson:
 
 1. Klónozd a repót (pl. `C:\Users\Administrator\source\repos\ai-trading-advisor`).
    A szervernek nem kell külön csomag (Python 3.11+).
-2. API kulcs: `setx TYPESAFE_API_KEY "..."` (új ablakban érvényes), vagy írd a kulcsot
-   `zorro\jev_key.txt`-be (gitignore-ban van, nem kerül fel).
+2. API kulcs: nevezd át a `zorro\jev_key.example.txt`-t `jev_key.txt`-re, és a mintaszöveg
+   helyére írd a kulcsot (a `jev_key.txt` gitignore-ban van, nem kerül fel).
+   Vagy: `setx TYPESAFE_API_KEY "..."` (új ablakban érvényes).
 3. Futtasd a `zorro\start_jev.bat`-ot, ellenőrzés: böngészőben `http://127.0.0.1:5003/health`.
 4. Másold a `zorro\JevTrader.c`-t a Zorro `Strategy\` mappájába, Account = cTrader, Trade.
 
