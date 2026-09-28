@@ -124,6 +124,10 @@ def test_tp_first_mode(monkeypatch):
 
     assert JS.decide({"long_tp_first": {"noul": 0.31}, "short_tp_first": {"noul": 0.46}}, "flat")[0] == "open_short"
     assert JS.decide({"long_tp_first": {"noul": 0.35}, "short_tp_first": {"noul": 0.30}}, "flat")[0] == "hold"
+    # no direction edge: both sides alike -> hold (the GBP/USD 0.46 / 0.46 case)
+    assert JS.decide({"long_tp_first": {"noul": 0.46}, "short_tp_first": {"noul": 0.46}}, "flat")[0] == "hold"
+    assert JS.decide({"long_tp_first": {"noul": 0.45}, "short_tp_first": {"noul": 0.43}}, "flat")[0] == "hold"
+    assert JS.decide({"long_tp_first": {"noul": 0.35}, "short_tp_first": {"noul": 0.53}}, "flat")[0] == "open_short"
     assert JS.decide({}, "flat")[0] == "hold"
     # with an open position the close/hold question is still used
     assert set(JS.build_questions("EUR/USD", "H1", "long")) == {"bias", "intent"}

@@ -51,6 +51,9 @@ SL_ATR = 1.5            # egyezzen a JevTrader.c SL_ATR / TP_ATR értékével!
 TP_ATR = 3.0
 # Nullszaldó esély SL/(SL+TP) = 1.5/4.5 = 0.33 (költségek nélkül). Ennél kicsit több kell.
 MIN_TP_FIRST = 0.40
+# A két irány kizárja egymást (long TP-first => short SL-first). Ha a Jev mindkettőre közel
+# ugyanazt mondja, nincs irány-információ -> nem nyit. Ennyivel kell jobbnak lennie a jobbiknak.
+MIN_DIR_EDGE = 0.05
 MIN_CONFIDENCE = 0.60   # classic: ennyi kell a Jev "open" / "close" válaszára
 MIN_BIAS = 0.55         # classic: ennyi kell az irányra (long/short) nyitáskor
 PLACEHOLDER_KEY = "IDE_IRD_A_JEV_API_KULCSOT"
@@ -269,6 +272,8 @@ def decide(answers, side, mode=None):
         d, p = ("long", pl) if pl >= ps else ("short", ps)
         if p < MIN_TP_FIRST:
             return "hold", "TP-first long=%.2f short=%.2f < %s" % (pl, ps, MIN_TP_FIRST), pl, ps, p
+        if abs(pl - ps) < MIN_DIR_EDGE:
+            return "hold", "no direction edge (long=%.2f short=%.2f, diff < %s)" % (pl, ps, MIN_DIR_EDGE), pl, ps, p
         return "open_" + d, "TP-first %s p=%.2f (long=%.2f short=%.2f)" % (d, p, pl, ps), pl, ps, p
     bias = _probs(answers.get("bias"), ("long", "short"))
     if side not in ("long", "short"):
@@ -380,7 +385,7 @@ def selftest(key, call=jev_call):
     if QUESTION_MODE == "tp_first":
         print("  long: TP előbb, mint SL:  %.2f" % out["p_long"])
         print("  short: TP előbb, mint SL: %.2f" % out["p_short"])
-        print("  (nyit, ha a jobbik >= %.2f)" % MIN_TP_FIRST)
+        print("  (nyit, ha a jobbik >= %.2f és legalább %.2f-dal jobb a másiknál)" % (MIN_TP_FIRST, MIN_DIR_EDGE))
     else:
         print("  long valószínűség:    %.2f" % out["p_long"])
         print("  short valószínűség:   %.2f" % out["p_short"])
@@ -446,8 +451,8 @@ def main():
         prefetch(os.path.abspath(args.prefetch), key, args.threads)
         return
     cache = JevCache()
-    log.info("Jev server on 127.0.0.1:%d (model=%s, mode=%s, min_tp_first=%s, cache=%d)",
-             args.port, JEV_MODEL, QUESTION_MODE, MIN_TP_FIRST, len(cache))
+    log.info("Jev server on 127.0.0.1:%d (model=%s, mode=%s, min_tp_first=%s, min_dir_edge=%s, cache=%d)",
+             args.port, JEV_MODEL, QUESTION_MODE, MIN_TP_FIRST, MIN_DIR_EDGE, len(cache))
     _Server(("127.0.0.1", args.port), make_handler(key, cache=cache)).serve_forever()
 
 

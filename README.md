@@ -129,7 +129,8 @@ Telepítés Windowson (Python 3.7+ elég, külön csomag nem kell):
 Kérdés mód a `JevServer.py` tetején (`QUESTION_MODE`):
 - `tp_first` (alapértelmezett): „Ha most nyitnék long/short pozíciót, hamarabb éri el az ár a
   take profitot (3×ATR), mint a stop losst (1,5×ATR)?” — igen/nem, mindkét irányra. Nyit, ha a
-  jobbik irány esélye ≥ `MIN_TP_FIRST` (0,40; a nullszaldó 1:2 aránynál 0,33).
+  jobbik irány esélye ≥ `MIN_TP_FIRST` (0,40; a nullszaldó 1:2 aránynál 0,33) és legalább
+  `MIN_DIR_EDGE`-dzsel (0,05) jobb a másik iránynál. A küszöbök módosításához nem kell új előtöltés.
 - `classic`: „long vagy short?” + „nyissak most vagy várjak?” (`MIN_CONFIDENCE`, `MIN_BIAS`).
 
 A `SL_ATR`/`TP_ATR` a `JevServer.py`-ban és a `JevTrader.c`-ben egyezzen. A cache módonként külön
