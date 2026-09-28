@@ -82,7 +82,7 @@ Ha az idősíkot módosítod, a `.github/workflows/trade.yml` ütemezését is i
   illetve kézzel is indítható.
 - **Refresh cTrader token** (`refresh-token.yml`): hetente megújítja a cTrader
   tokeneket, és visszaírja őket a secretekbe.
-- **Tests** (`tests.yml`): egységtesztek, valamint egy teljes futás egy hamis
+- **Tests** (`tests.yml`): minden pushnál egységtesztek, valamint egy teljes futás egy hamis
   cTrader-szerver ellen.
 
 ## Tudnivalók
