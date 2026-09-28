@@ -5,6 +5,10 @@ on:
     # cTrader access tokens last ~30 days; rotate weekly (Saturday, market closed).
     - cron: "17 6 * * 6"
   workflow_dispatch:
+  # Only so GitHub registers this workflow when the file changes; the job is skipped on push.
+  push:
+    paths:
+      - .github/workflows/refresh-token.yml
 
 concurrency:
   group: jev-trade
@@ -15,6 +19,7 @@ permissions:
 
 jobs:
   refresh:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
