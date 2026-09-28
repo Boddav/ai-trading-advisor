@@ -126,7 +126,14 @@ Telepítés Windowson (Python 3.7+ elég, külön csomag nem kell):
 3. `test_jev.bat` → egy próba Jev hívás; `start_jev.bat` → szerver indítása.
 4. Zorro: Account = cTrader, Script = JevTrader, Trade.
 
-A Jev küszöbök (`MIN_CONFIDENCE`, `MIN_BIAS`) a `JevServer.py` tetején állíthatók;
+Kérdés mód a `JevServer.py` tetején (`QUESTION_MODE`):
+- `tp_first` (alapértelmezett): „Ha most nyitnék long/short pozíciót, hamarabb éri el az ár a
+  take profitot (3×ATR), mint a stop losst (1,5×ATR)?” — igen/nem, mindkét irányra. Nyit, ha a
+  jobbik irány esélye ≥ `MIN_TP_FIRST` (0,40; a nullszaldó 1:2 aránynál 0,33).
+- `classic`: „long vagy short?” + „nyissak most vagy várjak?” (`MIN_CONFIDENCE`, `MIN_BIAS`).
+
+A `SL_ATR`/`TP_ATR` a `JevServer.py`-ban és a `JevTrader.c`-ben egyezzen. A cache módonként külön
+van, mód váltás után a backtesthez új előtöltés kell.
 a `.c` fájl tetején a `SL_ATR`/`TP_ATR`/`MAX_OPEN` és az assetlista állítható.
 **Backtest (Zorro Test gomb)** — `JEV_TEST_MODE` a `.c` tetején, időszak: `CFG_STARTDATE`:
 

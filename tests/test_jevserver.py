@@ -33,6 +33,15 @@ def _serve(jev):
     return srv
 
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def classic_mode(monkeypatch):
+    """Most tests exercise the classic questions; tp_first has its own tests."""
+    monkeypatch.setattr(JS, "QUESTION_MODE", "classic")
+
+
 BARS = [[1.08 + i * 1e-4, 1.0806 + i * 1e-4, 1.0797 + i * 1e-4, 1.0803 + i * 1e-4] for i in range(200)]
 
 
@@ -104,3 +113,34 @@ def test_cache_and_prefetch(tmp_path):
     # prefetch again: nothing left to do
     JS.prefetch(str(export), "KEY", threads=4, call=jev, cache=cache2)
     assert len(jev.calls) == 21
+
+
+def test_tp_first_mode(monkeypatch):
+    monkeypatch.setattr(JS, "QUESTION_MODE", "tp_first")
+    q = JS.build_questions("EUR/USD", "H1", "flat")
+    assert set(q) == {"long_tp_first", "short_tp_first"}
+    assert q["long_tp_first"]["type"] == "noul" and set(q["long_tp_first"]["criteria"]) == {"true", "false"}
+    assert "above" in q["long_tp_first"]["instructions"]["question"].split("take profit")[1].split("stop")[0]
+
+    assert JS.decide({"long_tp_first": {"noul": 0.31}, "short_tp_first": {"noul": 0.46}}, "flat")[0] == "open_short"
+    assert JS.decide({"long_tp_first": {"noul": 0.35}, "short_tp_first": {"noul": 0.30}}, "flat")[0] == "hold"
+    assert JS.decide({}, "flat")[0] == "hold"
+    # with an open position the close/hold question is still used
+    assert set(JS.build_questions("EUR/USD", "H1", "long")) == {"bias", "intent"}
+    assert JS.decide({"intent": {"probabilities": {"close": 0.7, "hold": 0.3}}}, "long")[0] == "close"
+
+
+def test_tp_first_over_http_and_cache_key_depends_on_mode(monkeypatch, tmp_path):
+    monkeypatch.setattr(JS, "QUESTION_MODE", "tp_first")
+    jev = FakeJev({"long_tp_first": {"type": "noul", "noul": 0.52}, "short_tp_first": {"type": "noul", "noul": 0.2}})
+    req = {"asset": "EUR/USD", "tf": "H1", "digits": 5, "pos": "flat", "entry": 0, "bars": BARS}
+    k_tp = JS.JevCache.key(req)
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), JS.make_handler("KEY", jev, JS.JevCache(str(tmp_path / "c.jsonl"))))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        out = _post(srv.server_address[1], req)
+    finally:
+        srv.shutdown()
+    assert out["action"] == "open_long" and out["p_long"] == 0.52
+    monkeypatch.setattr(JS, "QUESTION_MODE", "classic")
+    assert JS.JevCache.key(req) != k_tp

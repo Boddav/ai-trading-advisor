@@ -42,10 +42,17 @@ from http.server import BaseHTTPRequestHandler
 
 # ============ BEÁLLÍTÁSOK ============
 JEV_MODEL = "jev-latest"
-MIN_CONFIDENCE = 0.60   # ennyi kell a Jev "open" / "close" válaszára
-MIN_BIAS = 0.55         # ennyi kell az irányra (long/short) nyitáskor
-SL_ATR = 1.5            # csak a Jevnek szóló leíráshoz; a valódi Stop a JevTrader.c-ben
+# Kérdés mód:
+#   "tp_first" = "Hamarabb éri el az ár a take profitot, mint a stop losst?" long és short
+#                irányra külön (igen/nem). Nyit, ha a jobb irány esélye >= MIN_TP_FIRST.
+#   "classic"  = "long vagy short?" + "nyissak most vagy várjak?" (MIN_CONFIDENCE / MIN_BIAS)
+QUESTION_MODE = "tp_first"
+SL_ATR = 1.5            # egyezzen a JevTrader.c SL_ATR / TP_ATR értékével!
 TP_ATR = 3.0
+# Nullszaldó esély SL/(SL+TP) = 1.5/4.5 = 0.33 (költségek nélkül). Ennél kicsit több kell.
+MIN_TP_FIRST = 0.40
+MIN_CONFIDENCE = 0.60   # classic: ennyi kell a Jev "open" / "close" válaszára
+MIN_BIAS = 0.55         # classic: ennyi kell az irányra (long/short) nyitáskor
 PLACEHOLDER_KEY = "IDE_IRD_A_JEV_API_KULCSOT"
 TYPESAFE_URL = os.environ.get("TYPESAFE_BASE_URL", "https://api.typesafe.ai").rstrip("/") + "/v1/systemone"
 # =====================================
@@ -74,7 +81,7 @@ class JevCache:
 
     @staticmethod
     def key(req):
-        canon = json.dumps([JEV_MODEL, req], sort_keys=True, separators=(",", ":"))
+        canon = json.dumps([JEV_MODEL, QUESTION_MODE, req], sort_keys=True, separators=(",", ":"))
         return hashlib.sha1(canon.encode()).hexdigest()
 
     def get(self, k):
@@ -203,13 +210,26 @@ def build_state(asset, tf, bars, side, entry, digits):
     return state
 
 
-def build_questions(asset, tf, side):
+def build_questions(asset, tf, side, mode=None):
+    mode = mode or QUESTION_MODE
     ctx = ("%s %s closed bars. recent_bars are [open, high, low, close], oldest first. "
            "A trade uses a stop %sx ATR and a target %sx ATR away from entry." % (asset, tf, SL_ATR, TP_ATR))
     bias = {"type": "choice",
             "instructions": {"question": "Over the next few %s bars, is %s more likely to move up or down?" % (tf, asset),
                              "inputs": ctx},
             "criteria": {"long": "%s rises" % asset, "short": "%s falls" % asset}}
+    if mode == "tp_first" and side not in ("long", "short"):
+        def tp_first(d):
+            up = d == "long"
+            return {"type": "noul",
+                    "instructions": {
+                        "question": "If a %s %s trade is opened at last_close now, will price reach the take profit "
+                                    "(%sx atr14 %s) before the stop loss (%sx atr14 %s)?"
+                                    % (d, asset, TP_ATR, "above" if up else "below",
+                                       SL_ATR, "below" if up else "above"),
+                        "inputs": ctx},
+                    "criteria": {"true": "take profit is hit first", "false": "stop loss is hit first"}}
+        return {"long_tp_first": tp_first("long"), "short_tp_first": tp_first("short")}
     if side not in ("long", "short"):
         intent = {"type": "choice",
                   "instructions": {"question": "Open a new %s trade now, or wait?" % asset,
@@ -234,8 +254,22 @@ def _probs(answer, keys):
     return {k: v / total for k, v in zip(keys, vals)}
 
 
-def decide(answers, side):
+def _noul(answer):
+    try:
+        return min(1.0, max(0.0, float((answer or {}).get("noul", 0.0))))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def decide(answers, side, mode=None):
     """-> (action, reason, p_long, p_short, p_intent)"""
+    mode = mode or QUESTION_MODE
+    if mode == "tp_first" and side not in ("long", "short"):
+        pl, ps = _noul(answers.get("long_tp_first")), _noul(answers.get("short_tp_first"))
+        d, p = ("long", pl) if pl >= ps else ("short", ps)
+        if p < MIN_TP_FIRST:
+            return "hold", "TP-first long=%.2f short=%.2f < %s" % (pl, ps, MIN_TP_FIRST), pl, ps, p
+        return "open_" + d, "TP-first %s p=%.2f (long=%.2f short=%.2f)" % (d, p, pl, ps), pl, ps, p
     bias = _probs(answers.get("bias"), ("long", "short"))
     if side not in ("long", "short"):
         intent = _probs(answers.get("intent"), ("open", "hold"))
@@ -333,7 +367,7 @@ def selftest(key, call=jev_call):
     print("\n=== KÉRDÉSEK A JEVNEK ===")
     for name, q in build_questions("EUR/USD", "H1", "flat").items():
         print("  %s: %s" % (name, q["instructions"]["question"]))
-        print("      lehetséges válaszok: %s" % ", ".join(q["criteria"]))
+        print("      lehetséges válaszok: %s" % ", ".join(str(k) for k in q["criteria"]))
     print("\n... Jev hívása (mintaadat: EUR/USD H1, 200 bar) ...")
     t0 = time.time()
     try:
@@ -343,9 +377,14 @@ def selftest(key, call=jev_call):
         print("    401/403 = rossz API kulcs; egyéb = hálózat vagy TypeSafe oldali hiba")
         return
     print("\n=== VÁLASZ (%.0f ms) ===" % ((time.time() - t0) * 1000))
-    print("  long valószínűség:    %.2f" % out["p_long"])
-    print("  short valószínűség:   %.2f" % out["p_short"])
-    print("  nyitás valószínűsége: %.2f" % out["p_intent"])
+    if QUESTION_MODE == "tp_first":
+        print("  long: TP előbb, mint SL:  %.2f" % out["p_long"])
+        print("  short: TP előbb, mint SL: %.2f" % out["p_short"])
+        print("  (nyit, ha a jobbik >= %.2f)" % MIN_TP_FIRST)
+    else:
+        print("  long valószínűség:    %.2f" % out["p_long"])
+        print("  short valószínűség:   %.2f" % out["p_short"])
+        print("  nyitás valószínűsége: %.2f" % out["p_intent"])
     print("  DÖNTÉS: %s  (%s)" % (out["action"], out["reason"]))
     print("\nOK - a Jev kulcs működik. (A mintaadat nem valós piac, a döntés csak próba.)")
 
@@ -407,8 +446,8 @@ def main():
         prefetch(os.path.abspath(args.prefetch), key, args.threads)
         return
     cache = JevCache()
-    log.info("Jev server on 127.0.0.1:%d (model=%s, min_confidence=%s, min_bias=%s, cache=%d)",
-             args.port, JEV_MODEL, MIN_CONFIDENCE, MIN_BIAS, len(cache))
+    log.info("Jev server on 127.0.0.1:%d (model=%s, mode=%s, min_tp_first=%s, cache=%d)",
+             args.port, JEV_MODEL, QUESTION_MODE, MIN_TP_FIRST, len(cache))
     _Server(("127.0.0.1", args.port), make_handler(key, cache=cache)).serve_forever()
 
 
