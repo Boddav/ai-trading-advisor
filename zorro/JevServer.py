@@ -16,14 +16,20 @@
 # API kulcs: jev_key.txt a szerver mellett, vagy TYPESAFE_API_KEY környezeti változó.
 # Port: 5003 (nem ütközik: MLDRIVEN 5001, UltOsc 5002)
 #
+# Cache: minden Jev választ elment a jev_cache.jsonl-be (kulcs: a kérés tartalma).
+# Ugyanarra a kérésre (pl. backtest újrafuttatás) nem hívja újra a Jevet.
+#
 # Usage: python JevServer.py [--port 5003] [--selftest]
+#        python JevServer.py --prefetch [..\Data\JevExport.jsonl] [--threads 8]
 # =================================================================
 import argparse
+import hashlib
 import json
 import logging
 import math
 import os
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -45,7 +51,45 @@ TYPESAFE_URL = os.environ.get("TYPESAFE_BASE_URL", "https://api.typesafe.ai").rs
 # =====================================
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+CACHE_FILE = os.path.join(HERE, "jev_cache.jsonl")
+DEFAULT_EXPORT = os.path.join(HERE, "..", "Data", "JevExport.jsonl")
 log = logging.getLogger("jevserver")
+
+
+class JevCache:
+    """Jev válaszok (answers) a kérés tartalma szerint; fájlban megmarad."""
+
+    def __init__(self, path=CACHE_FILE):
+        self.path = path
+        self.lock = threading.Lock()
+        self.data = {}
+        if path and os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        row = json.loads(line)
+                        self.data[row["k"]] = row["a"]
+                    except (ValueError, KeyError):
+                        continue  # félbemaradt sor
+
+    @staticmethod
+    def key(req):
+        canon = json.dumps([JEV_MODEL, req], sort_keys=True, separators=(",", ":"))
+        return hashlib.sha1(canon.encode()).hexdigest()
+
+    def get(self, k):
+        with self.lock:
+            return self.data.get(k)
+
+    def put(self, k, answers):
+        with self.lock:
+            self.data[k] = answers
+            if self.path:
+                with open(self.path, "a", encoding="utf-8") as f:
+                    f.write(json.dumps({"k": k, "a": answers}) + "\n")
+
+    def __len__(self):
+        return len(self.data)
 
 
 class JevError(RuntimeError):
@@ -207,7 +251,7 @@ def decide(answers, side):
     return "hold", "keep %s (close p=%.2f)" % (side, intent["close"]), bias["long"], bias["short"], intent["close"]
 
 
-def handle_decide(req, api_key, call=jev_call):
+def handle_decide(req, api_key, call=jev_call, cache=None):
     asset = str(req["asset"])
     tf = str(req.get("tf", "H1"))
     digits = int(req.get("digits", 5))
@@ -216,15 +260,21 @@ def handle_decide(req, api_key, call=jev_call):
         raise ValueError("legalább 50 bar kell, jött: %d" % len(bars))
     side = str(req.get("pos", "flat")).lower()
     entry = float(req.get("entry", 0) or 0)
-    state = build_state(asset, tf, bars, side, entry, digits)
-    res = call(api_key, state, build_questions(asset, tf, side))
-    action, reason, pl, ps, pi = decide(res.get("answers", {}), side)
+    k = JevCache.key(req) if cache is not None else None
+    answers = cache.get(k) if k else None
+    cached = answers is not None
+    if not cached:
+        state = build_state(asset, tf, bars, side, entry, digits)
+        answers = call(api_key, state, build_questions(asset, tf, side)).get("answers", {})
+        if k:
+            cache.put(k, answers)
+    action, reason, pl, ps, pi = decide(answers, side)
     return {"action": action, "p_long": round(pl, 4), "p_short": round(ps, 4),
-            "p_intent": round(pi, 4), "reason": reason}
+            "p_intent": round(pi, 4), "reason": reason, "cached": cached}
 
 
 # ---------------- HTTP szerver ----------------
-def make_handler(api_key, call=jev_call):
+def make_handler(api_key, call=jev_call, cache=None):
     class Handler(BaseHTTPRequestHandler):
         def _reply(self, code, body):
             data = json.dumps(body).encode()
@@ -245,8 +295,9 @@ def make_handler(api_key, call=jev_call):
                 return self._reply(404, {"error": "not found"})
             try:
                 req = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))
-                out = handle_decide(req, api_key, call)
-                log.info("%s pos=%s -> %s (%s)", req.get("asset"), req.get("pos"), out["action"], out["reason"])
+                out = handle_decide(req, api_key, call, cache)
+                log.info("%s pos=%s -> %s (%s)%s", req.get("asset"), req.get("pos"), out["action"],
+                         out["reason"], " [cache]" if out["cached"] else "")
                 self._reply(200, out)
             except (JevError, ValueError, KeyError, TypeError, IndexError) as e:
                 log.error("decide failed: %s", e)
@@ -299,19 +350,66 @@ def selftest(key, call=jev_call):
     print("\nOK - a Jev kulcs működik. (A mintaadat nem valós piac, a döntés csak próba.)")
 
 
+def prefetch(path, key, threads=8, call=jev_call, cache=None):
+    """A Zorro export (JEV_TEST_MODE 2) kérdéseit párhuzamosan lekérdezi és cache-eli."""
+    from concurrent.futures import ThreadPoolExecutor
+    cache = cache if cache is not None else JevCache()
+    if not os.path.exists(path):
+        print("Nincs export fájl: %s\nElőbb futtasd a Zorro Test-et JEV_TEST_MODE 2-vel." % path)
+        return
+    reqs = []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    reqs.append(json.loads(line))
+                except ValueError:
+                    pass
+    todo = [r for r in reqs if cache.get(JevCache.key(r)) is None]
+    print("Export: %d kérdés, ebből már cache-ben: %d, lekérdezendő: %d" % (len(reqs), len(reqs) - len(todo), len(todo)))
+    done = [0, 0]
+    lock = threading.Lock()
+    t0 = time.time()
+
+    def one(r):
+        try:
+            handle_decide(r, key, call, cache)
+            ok = True
+        except (JevError, ValueError, KeyError, TypeError, IndexError) as e:
+            log.error("%s: %s", r.get("asset"), e)
+            ok = False
+        with lock:
+            done[0 if ok else 1] += 1
+            n = done[0] + done[1]
+            if n % 100 == 0 or n == len(todo):
+                print("  %d / %d  (%.0f mp)" % (n, len(todo), time.time() - t0))
+
+    with ThreadPoolExecutor(max_workers=max(1, threads)) as ex:
+        list(ex.map(one, todo))
+    print("Kész: %d sikeres, %d hibás. Cache: %d válasz. Most futtasd a Test-et JEV_TEST_MODE 1-gyel."
+          % (done[0], done[1], len(cache)))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=5003)
     ap.add_argument("--selftest", action="store_true", help="egy próba Jev hívás, szerver nélkül")
+    ap.add_argument("--prefetch", nargs="?", const=DEFAULT_EXPORT, help="Zorro export fájl előtöltése")
+    ap.add_argument("--threads", type=int, default=8)
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     key = api_key()
     if args.selftest:
         selftest(key)
         return
-    log.info("Jev server on 127.0.0.1:%d (model=%s, min_confidence=%s, min_bias=%s)",
-             args.port, JEV_MODEL, MIN_CONFIDENCE, MIN_BIAS)
-    _Server(("127.0.0.1", args.port), make_handler(key)).serve_forever()
+    if args.prefetch:
+        prefetch(os.path.abspath(args.prefetch), key, args.threads)
+        return
+    cache = JevCache()
+    log.info("Jev server on 127.0.0.1:%d (model=%s, min_confidence=%s, min_bias=%s, cache=%d)",
+             args.port, JEV_MODEL, MIN_CONFIDENCE, MIN_BIAS, len(cache))
+    _Server(("127.0.0.1", args.port), make_handler(key, cache=cache)).serve_forever()
 
 
 if __name__ == "__main__":

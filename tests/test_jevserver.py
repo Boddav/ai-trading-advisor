@@ -75,3 +75,32 @@ def test_standalone_server_matches_advisor_strategy():
     assert JS.build_questions("EUR/USD", "H1", "flat") == build_questions("EUR/USD", "H1", None, 1.5, 3.0)
     ans = {"bias": {"probabilities": {"long": 0.3, "short": 0.7}}, "intent": {"probabilities": {"open": 0.8, "hold": 0.2}}}
     assert JS.decide(ans, "flat")[0] == decide(ans, None, 0.6, 0.55).action == "open_short"
+
+
+def test_cache_and_prefetch(tmp_path):
+    """Export -> parallel prefetch -> the backtest's identical requests hit the cache."""
+    jev = FakeJev({"bias": {"probabilities": {"long": 0.7, "short": 0.3}},
+                   "intent": {"probabilities": {"open": 0.8, "hold": 0.2}}})
+    export = tmp_path / "JevExport.jsonl"
+    reqs = [{"asset": a, "tf": "H1", "digits": 5, "pos": "flat", "entry": 0, "bars": BARS[i:i + 150]}
+            for a in ("EUR/USD", "GBP/USD") for i in range(10)]
+    export.write_text("".join(json.dumps(r) + "\n" for r in reqs) + "{broken\n")
+    cache = JS.JevCache(str(tmp_path / "jev_cache.jsonl"))
+    JS.prefetch(str(export), "KEY", threads=4, call=jev, cache=cache)
+    assert len(jev.calls) == 20 and len(cache) == 20
+
+    # a later server run loads the file and answers without calling Jev
+    cache2 = JS.JevCache(str(tmp_path / "jev_cache.jsonl"))
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), JS.make_handler("KEY", jev, cache2))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        out = _post(srv.server_address[1], reqs[3])
+        miss = _post(srv.server_address[1], {**reqs[3], "pos": "long", "entry": 1.08})
+    finally:
+        srv.shutdown()
+    assert out["cached"] is True and out["action"] == "open_long"
+    assert miss["cached"] is False and len(jev.calls) == 21
+
+    # prefetch again: nothing left to do
+    JS.prefetch(str(export), "KEY", threads=4, call=jev, cache=cache2)
+    assert len(jev.calls) == 21

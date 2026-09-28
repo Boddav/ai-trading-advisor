@@ -8,8 +8,13 @@
 //
 // Indítás: 1) zorro\start_jev.bat   2) Zorro: [Account]=cTrader, Script=JevTrader, Trade
 //
-// Backtestben a Jev NEM hívódik (pénzbe kerül és nem reprodukálható),
-// kivéve JEV_IN_TEST 1 esetén — ekkor minden JEV_TEST_EVERY. baron.
+// BACKTEST (Test gomb), JEV_TEST_MODE szerint:
+//   1 = minden baron megkérdezi a Jevet a szerveren át. A szerver minden választ
+//       elment (jev_cache.jsonl), így az újrafuttatás azonnali és ugyanazt adja.
+//   2 = csak kiírja a kérdéseket (Data\JevExport.jsonl), nem kereskedik. Utána
+//       prefetch_jev.bat párhuzamosan lekérdezi őket -> a Test (mód 1) percek helyett
+//       másodpercek alatt lefut. Nagy időszakhoz ajánlott.
+//   0 = backtestben nincs Jev.
 // =================================================================
 
 // ============ KONFIGURÁCIÓ ============
@@ -24,8 +29,10 @@
 #define TP_ATR          3.0       // TakeProfit = ATR(14) * TP_ATR
 #define MAX_OPEN        3         // egyszerre nyitott pozíciók (összes asset)
 
-#define JEV_IN_TEST     0         // 1 = backtestben is hívja (lassú, fizetős!)
-#define JEV_TEST_EVERY  24        // backtestben csak minden N. baron
+#define JEV_TEST_MODE   1         // backtest: 0=nincs Jev, 1=Jev (cache-elve), 2=kérdések exportja
+#define CFG_STARTDATE   20260601  // backtest kezdete (ÉÉÉÉHHNN)
+#define CFG_ENDDATE     0         // backtest vége, 0 = mostanáig
+#define EXPORT_FILE     "Data\\JevExport.jsonl"
 // ======================================
 
 static char postBuf[16000];
@@ -86,6 +93,11 @@ function run()
 
 	BarPeriod = CFG_BARPERIOD;
 	LookBack = JEV_BARS + 20;
+	StartDate = CFG_STARTDATE;
+	if(CFG_ENDDATE) EndDate = CFG_ENDDATE;
+
+	if(is(INITRUN) && !is(TRADEMODE) && JEV_TEST_MODE == 2)
+		file_delete(EXPORT_FILE);
 	Capital = CFG_CAPITAL;
 	Leverage = CFG_LEVERAGE;
 	Hedge = 0;
@@ -99,10 +111,7 @@ function run()
 
 		if(is(LOOKBACK) || atr14 <= 0) continue;
 
-		int callJev = 0;
-		if(is(TRADEMODE)) callJev = 1;
-		if(!is(TRADEMODE) && JEV_IN_TEST && (Bar % JEV_TEST_EVERY) == 0) callJev = 1;
-		if(!callJev) continue;
+		if(!is(TRADEMODE) && JEV_TEST_MODE == 0) continue;
 
 		// saját pozíció erre az assetre
 		string pos = "flat";
@@ -114,6 +123,14 @@ function run()
 				if(TradeIsLong) pos = "long"; else pos = "short";
 				entry = TradePriceOpen;
 			}
+		}
+
+		// export mód: csak a "nincs pozíció" kérdést írjuk ki minden barra, kereskedés nélkül
+		if(!is(TRADEMODE) && JEV_TEST_MODE == 2)
+		{
+			file_append(EXPORT_FILE, buildRequest("flat", 0));
+			file_append(EXPORT_FILE, "\n");
+			continue;
 		}
 
 		string resp = http_transfer(JEV_URL, buildRequest(pos, entry));

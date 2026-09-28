@@ -114,6 +114,8 @@ mintájára (lite-C `http_transfer` → helyi Python szerver):
 | `zorro/JevTrader.c` | Zorro stratégia: H1 baronként elküldi az utolsó 200 bart, a válasz alapján `enterLong` / `enterShort` / `exitLong+exitShort`, ATR Stop/TakeProfit |
 | `zorro/JevServer.py` | Helyi szerver (port 5003): megkérdezi a Jevet, visszaadja: `open_long` / `open_short` / `close` / `hold` |
 | `zorro/start_jev.bat` | Szerver indítása (a régi 5003-as folyamatot leállítja) |
+| `zorro/test_jev.bat` | Egy próba Jev hívás + szerver ellenőrzés |
+| `zorro/prefetch_jev.bat` | Backtest kérdések párhuzamos előtöltése |
 
 Telepítés Windowson (Python 3.7+ elég, külön csomag nem kell):
 
@@ -126,7 +128,16 @@ Telepítés Windowson (Python 3.7+ elég, külön csomag nem kell):
 
 A Jev küszöbök (`MIN_CONFIDENCE`, `MIN_BIAS`) a `JevServer.py` tetején állíthatók;
 a `.c` fájl tetején a `SL_ATR`/`TP_ATR`/`MAX_OPEN` és az assetlista állítható.
-Backtestben a Jev alapból nem hívódik (fizetős és nem reprodukálható) — `JEV_IN_TEST 1`-gyel bekapcsolható.
+**Backtest (Zorro Test gomb)** — `JEV_TEST_MODE` a `.c` tetején, időszak: `CFG_STARTDATE`:
+
+1. `JEV_TEST_MODE 2` → Test: a Zorro csak kiírja a kérdéseket (`Data\JevExport.jsonl`), nem kereskedik.
+2. `prefetch_jev.bat` → a szerver 8 szálon lekérdezi őket a Jevtől, és elmenti (`jev_cache.jsonl`).
+3. `JEV_TEST_MODE 1`, `start_jev.bat`, Test → a válaszok a cache-ből jönnek, gyors és megismételhető.
+   Nyitott pozíció közben a "zárjam?" kérdés élőben megy (utána az is cache-ben marad).
+
+Az 1-es mód előtöltés nélkül is működik, csak lassabb (~0,7 mp/bar/asset az első futásnál).
+Figyelem: a Jev a múltbeli időszakot a tanítóadatából ismerheti, ezért a backtest eredménye
+optimistább lehet a valóságnál. A megbízható próba a demó számla.
 
 **Fontos:** ha a GitHub bot és a Zorro ugyanazon a számlán ugyanazt az assetet kereskedi,
 két külön pozíció lesz. Egy assetet csak az egyik kezeljen.

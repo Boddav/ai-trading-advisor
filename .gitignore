@@ -5,3 +5,4 @@ __pycache__/
 .env
 oauth_token.json
 zorro/jev_key.txt
+zorro/jev_cache.jsonl
