@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import sys
+import time
 import tomllib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -112,13 +113,46 @@ def make_handler(jev: JevClient, s: dict):
     return Handler
 
 
+def selftest(jev: JevClient, s: dict) -> None:
+    """Egy valódi Jev hívás minta EUR/USD adattal: kiírja a kérdéseket és a választ."""
+    import math
+    bars = []
+    for i in range(200):  # mintaadat: enyhe emelkedés hullámzással
+        c = 1.0800 + i * 0.00005 + 0.0008 * math.sin(i / 7)
+        bars.append([round(c - 0.0002, 5), round(c + 0.0006, 5), round(c - 0.0006, 5), round(c, 5)])
+    req = {"asset": "EUR/USD", "tf": "H1", "digits": 5, "pos": "flat", "entry": 0, "bars": bars}
+    questions = build_questions("EUR/USD", "H1", None, s["sl_atr"], s["tp_atr"])
+    print("\n=== KÉRDÉSEK A JEVNEK ===")
+    for name, q in questions.items():
+        print(f"  {name}: {q['instructions']['question']}")
+        print(f"      lehetséges válaszok: {', '.join(q['criteria'])}")
+    print("\n... Jev hívása (mintaadat: EUR/USD H1, 200 bar) ...")
+    t0 = time.time()
+    try:
+        out = handle_decide(req, jev, s)
+    except JevError as e:
+        print(f"\n*** HIBA: {e}")
+        print("    401/403 = rossz API kulcs; egyéb = hálózat vagy TypeSafe oldali hiba")
+        return
+    print(f"\n=== VÁLASZ ({(time.time() - t0) * 1000:.0f} ms) ===")
+    print(f"  long valószínűség:  {out['p_long']:.2f}")
+    print(f"  short valószínűség: {out['p_short']:.2f}")
+    print(f"  nyitás valószínűsége: {out['p_intent']:.2f}")
+    print(f"  DÖNTÉS: {out['action']}  ({out['reason']})")
+    print("\nOK - a Jev kulcs működik. (A mintaadat nem valós piac, a döntés csak próba.)")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=5003)
+    ap.add_argument("--selftest", action="store_true", help="egy próba Jev hívás, szerver nélkül")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     s = load_settings()
     jev = JevClient(api_key(), s["model"])
+    if args.selftest:
+        selftest(jev, s)
+        return
     log.info("Jev server on 127.0.0.1:%d (model=%s, min_confidence=%s, min_bias=%s)",
              args.port, s["model"], s["min_confidence"], s["min_bias"])
     ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(jev, s)).serve_forever()
