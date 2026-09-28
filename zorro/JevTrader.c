@@ -28,6 +28,7 @@
 #define SL_ATR          1.5       // Stop = ATR(14) * SL_ATR
 #define TP_ATR          3.0       // TakeProfit = ATR(14) * TP_ATR
 #define MAX_OPEN        3         // egyszerre nyitott pozíciók (összes asset)
+#define MAX_ATR_PCT     3.0       // ATR(14) ennél nagyobb (% az árhoz) = hibás adat, kihagyja
 
 #define JEV_TEST_MODE   1         // backtest: 0=nincs Jev, 1=Jev (cache-elve), 2=kérdések exportja
 #define CFG_STARTDATE   20260601  // backtest kezdete (ÉÉÉÉHHNN)
@@ -80,6 +81,23 @@ string getAction(string resp)
 	return actBuf;
 }
 
+// Az előtörténet ép-e: nincs nulla/negatív ár, high >= low, és az ATR ésszerű.
+// (Hiányzó history esetén a Zorro 0 árú barokat ad -> óriási ATR -> értelmetlen SL/TP.)
+int dataOK(var atr14)
+{
+	int i;
+	for(i = 0; i < JEV_BARS; i++)
+	{
+		if(priceOpen(i) <= 0 || priceHigh(i) <= 0 || priceLow(i) <= 0 || priceClose(i) <= 0)
+			return 0;
+		if(priceHigh(i) < priceLow(i))
+			return 0;
+	}
+	if(atr14 <= 0 || atr14 > priceClose() * MAX_ATR_PCT / 100)
+		return 0;
+	return 1;
+}
+
 int countOpenAll()
 {
 	int n = 0;
@@ -109,7 +127,12 @@ function run()
 	{
 		var atr14 = ATR(14);
 
-		if(is(LOOKBACK) || atr14 <= 0) continue;
+		if(is(LOOKBACK)) continue;
+		if(!dataOK(atr14))
+		{
+			printf("\n[JEV] %s kihagyva: hibás előtörténet (0 ár / hiányzó bar), ATR=%.5f", Asset, atr14);
+			continue;
+		}
 
 		if(!is(TRADEMODE) && JEV_TEST_MODE == 0) continue;
 
@@ -150,7 +173,8 @@ function run()
 				Stop = atr14 * SL_ATR;
 				TakeProfit = atr14 * TP_ATR;
 				enterLong();
-				printf("\n[JEV] %s LONG @ %.5f SL=%.5f TP=%.5f", Asset, priceClose(), Stop, TakeProfit);
+				printf("\n[JEV] %s LONG @ %.5f SL=%.5f TP=%.5f (ATR=%.5f)", Asset, priceClose(),
+					priceClose() - Stop, priceClose() + TakeProfit, atr14);
 			}
 		}
 		else if(strstr(act, "open_short"))
@@ -162,7 +186,8 @@ function run()
 				Stop = atr14 * SL_ATR;
 				TakeProfit = atr14 * TP_ATR;
 				enterShort();
-				printf("\n[JEV] %s SHORT @ %.5f SL=%.5f TP=%.5f", Asset, priceClose(), Stop, TakeProfit);
+				printf("\n[JEV] %s SHORT @ %.5f SL=%.5f TP=%.5f (ATR=%.5f)", Asset, priceClose(),
+					priceClose() + Stop, priceClose() - TakeProfit, atr14);
 			}
 		}
 		else if(strstr(act, "close"))

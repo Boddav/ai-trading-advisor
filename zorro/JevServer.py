@@ -297,6 +297,10 @@ def handle_decide(req, api_key, call=jev_call, cache=None):
     bars = [[float(x) for x in b[:4]] for b in req["bars"]]
     if len(bars) < 50:
         raise ValueError("legalább 50 bar kell, jött: %d" % len(bars))
+    bad = [i for i, b in enumerate(bars) if min(b) <= 0 or b[1] < b[2]]
+    if bad:
+        raise ValueError("hibás gyertya (0 ár vagy high<low) %d helyen, pl. #%d: %s -> nincs Jev kérdés"
+                         % (len(bad), bad[0], bars[bad[0]]))
     side = str(req.get("pos", "flat")).lower()
     entry = float(req.get("entry", 0) or 0)
     k = JevCache.key(req) if cache is not None else None

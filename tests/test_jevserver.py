@@ -148,3 +148,15 @@ def test_tp_first_over_http_and_cache_key_depends_on_mode(monkeypatch, tmp_path)
     assert out["action"] == "open_long" and out["p_long"] == 0.52
     monkeypatch.setattr(JS, "QUESTION_MODE", "classic")
     assert JS.JevCache.key(req) != k_tp
+
+
+def test_rejects_zero_price_bars():
+    jev = FakeJev({})
+    bad = [list(b) for b in BARS]
+    bad[21] = [0.0, 0.0, 0.0, 0.0]  # like Zorro's "gap at #21 (NaD) 0->0.00000"
+    srv = _serve(jev)
+    try:
+        out = _post(srv.server_address[1], {"asset": "EUR/USD", "pos": "flat", "bars": bad})
+    finally:
+        srv.shutdown()
+    assert out["action"] == "error" and "0 ár" in out["reason"] and jev.calls == []
