@@ -12,12 +12,11 @@ spec.loader.exec_module(JS)
 
 
 class FakeJev:
-    model = "jev-latest"
-
     def __init__(self, answers):
         self.answers, self.calls = answers, []
 
-    def system_one(self, state, questions):
+    def __call__(self, api_key, state, questions):
+        assert api_key == "KEY"
         self.calls.append((state, questions))
         return {"answers": self.answers}
 
@@ -29,8 +28,7 @@ def _post(port, body):
 
 
 def _serve(jev):
-    s = {"model": "jev-latest", "min_confidence": 0.6, "min_bias": 0.55, "sl_atr": 1.5, "tp_atr": 3.0}
-    srv = ThreadingHTTPServer(("127.0.0.1", 0), JS.make_handler(jev, s))
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), JS.make_handler("KEY", jev))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     return srv
 
@@ -65,3 +63,15 @@ def test_decide_close_and_bad_request():
     assert out["action"] == "close"
     assert jev.calls[0][0]["position"]["side"] == "short"
     assert bad["action"] == "error" and "50" in bad["reason"]
+
+
+def test_standalone_server_matches_advisor_strategy():
+    """The Zorro server inlines advisor.strategy; both must ask and decide the same."""
+    from advisor.ctrader import Bar
+    from advisor.strategy import build_questions, build_state, decide
+
+    bars = [Bar(i, *b, 0) for i, b in enumerate(BARS)]
+    assert JS.build_state("EUR/USD", "H1", BARS, "flat", 0, 5) == build_state("EUR/USD", "H1", bars, None, 5)
+    assert JS.build_questions("EUR/USD", "H1", "flat") == build_questions("EUR/USD", "H1", None, 1.5, 3.0)
+    ans = {"bias": {"probabilities": {"long": 0.3, "short": 0.7}}, "intent": {"probabilities": {"open": 0.8, "hold": 0.2}}}
+    assert JS.decide(ans, "flat")[0] == decide(ans, None, 0.6, 0.55).action == "open_short"

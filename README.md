@@ -115,17 +115,16 @@ mintájára (lite-C `http_transfer` → helyi Python szerver):
 | `zorro/JevServer.py` | Helyi szerver (port 5003): megkérdezi a Jevet, visszaadja: `open_long` / `open_short` / `close` / `hold` |
 | `zorro/start_jev.bat` | Szerver indítása (a régi 5003-as folyamatot leállítja) |
 
-Telepítés Windowson:
+Telepítés Windowson (Python 3.7+ elég, külön csomag nem kell):
 
-1. Klónozd a repót (pl. `C:\Users\Administrator\source\repos\ai-trading-advisor`).
-   A szervernek nem kell külön csomag (Python 3.11+).
-2. API kulcs: nevezd át a `zorro\jev_key.example.txt`-t `jev_key.txt`-re, és a mintaszöveg
-   helyére írd a kulcsot (a `jev_key.txt` gitignore-ban van, nem kerül fel).
-   Vagy: `setx TYPESAFE_API_KEY "..."` (új ablakban érvényes).
-3. Futtasd a `zorro\start_jev.bat`-ot, ellenőrzés: böngészőben `http://127.0.0.1:5003/health`.
-4. Másold a `zorro\JevTrader.c`-t a Zorro `Strategy\` mappájába, Account = cTrader, Trade.
+1. Másold a Zorro `Strategy\` mappájába: `JevTrader.c`, `JevServer.py`, `start_jev.bat`,
+   `test_jev.bat`, `jev_key.example.txt`.
+2. Nevezd át a `jev_key.example.txt`-t `jev_key.txt`-re, és a mintaszöveg helyére írd a
+   kulcsot (a `jev_key.txt` gitignore-ban van, nem kerül fel).
+3. `test_jev.bat` → egy próba Jev hívás; `start_jev.bat` → szerver indítása.
+4. Zorro: Account = cTrader, Script = JevTrader, Trade.
 
-A küszöbök (`min_confidence`, `min_bias`, `sl_atr`, `tp_atr`) a `config.toml`-ból jönnek;
+A Jev küszöbök (`MIN_CONFIDENCE`, `MIN_BIAS`) a `JevServer.py` tetején állíthatók;
 a `.c` fájl tetején a `SL_ATR`/`TP_ATR`/`MAX_OPEN` és az assetlista állítható.
 Backtestben a Jev alapból nem hívódik (fizetős és nem reprodukálható) — `JEV_IN_TEST 1`-gyel bekapcsolható.
 
