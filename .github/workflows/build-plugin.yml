@@ -1,0 +1,44 @@
+name: Build cTraderJev plugin
+
+# Lefordítja a plugin/cTraderJev forrást Windows-on (Win32 Release), és a kész
+# cTraderJev.dll-t visszateszi a repóba: plugin/bin/cTraderJev.dll
+on:
+  push:
+    branches: [main]
+    paths:
+      - "plugin/cTraderJev/**"
+      - ".github/workflows/build-plugin.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-plugin
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+      - name: Build (Release | Win32)
+        run: msbuild plugin\cTraderJev\cTraderJev.vcxproj /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /m /nologo /v:minimal
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cTraderJev
+          path: |
+            plugin/cTraderJev/Release/cTraderJev.dll
+            plugin/cTraderJev/jevgate/JevGate.ini
+      - name: Commit DLL to plugin/bin
+        shell: bash
+        run: |
+          mkdir -p plugin/bin
+          cp plugin/cTraderJev/Release/cTraderJev.dll plugin/bin/cTraderJev.dll
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add plugin/bin/cTraderJev.dll
+          if git diff --cached --quiet; then echo "DLL unchanged"; exit 0; fi
+          git commit -m "Build cTraderJev.dll from ${GITHUB_SHA::7}"
+          git push

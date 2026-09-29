@@ -1,0 +1,1900 @@
+#include "../include/state.h"
+#include "../include/trading.h"
+#include "../include/protocol.h"
+#include "../include/websocket.h"
+#include "../include/symbols.h"
+#include "../include/logger.h"
+#include "../include/utils.h"
+#include "../jevgate/jevgate.h"
+#include <cstdio>
+#include <cstring>
+#include <cmath>
+
+namespace Trading {
+
+// ============================================================
+// Volume conversion helpers
+// ============================================================
+
+// Zorro Amount -> cTrader volume in cents
+// Zorro sends Amount = Lots * LotAmount (base currency units)
+// cTrader volume = base_units * 100 (cents encoding)
+// Example: Amount=1000 (1000 EUR) -> vol=100,000 -> 0.01 std lot
+static long long ZorroToVolume(int amount) {
+    return (long long)abs(amount) * 100LL;
+}
+
+// cTrader volume in cents -> Zorro signed Amount (base currency units)
+// side: 1=Buy (positive), 2=Sell (negative)
+static int VolumeToZorro(long long vol, int side) {
+    int units = (int)(vol / 100LL);
+    if (units == 0) units = 1;  // minimum 1
+    return (side == 2) ? -units : units;
+}
+
+// ============================================================
+// Wait for trading response from NetworkThread
+// ============================================================
+
+static bool WaitForTradingResponse(int timeoutMs) {
+    ULONGLONG start = Utils::NowMs();
+    while (Utils::NowMs() - start < (ULONGLONG)timeoutMs) {
+        if (G.tradingResponseReady) return true;
+        Sleep(10);
+        if (BrokerProgress) BrokerProgress(1);
+    }
+    return false;
+}
+
+// Helper: reset shared trading buffer for next event (must hold csTrading)
+static void ResetTradingBuffer() {
+    G.tradingResponseReady = false;
+    G.tradingResponsePt = 0;
+    G.tradingResponseExecType = 0;
+    G.tradingResponseBuf[0] = '\0';
+}
+
+// Helper: check if positionStatus indicates CLOSED
+// Server sends integer (2=CLOSED) or string "POSITION_STATUS_CLOSED"
+static bool IsPositionClosed(const char* buf) {
+    const char* posStatus = Protocol::ExtractString(buf, "positionStatus");
+    if (!posStatus || !*posStatus) return false;
+    // Check integer value "2" (POSITION_STATUS_CLOSED)
+    if (strcmp(posStatus, "2") == 0) return true;
+    // Check string enum
+    if (strcmp(posStatus, "POSITION_STATUS_CLOSED") == 0) return true;
+    return false;
+}
+
+// ============================================================
+// CancelTimedOutOrder - NewOrder was accepted by the server but no FILLED
+// arrived in time (typically during the daily market break, when the server
+// queues the order until reopen). Without this, the abandoned order can fill
+// later as an orphan position that Zorro knows nothing about.
+// Cancels the order server-side; if the order fills during cancellation
+// (race), registers the trade and returns zorroId. Returns 0 if cancelled.
+// ============================================================
+
+static int CancelTimedOutOrder(long long orderId, int zorroId, const char* asset,
+                               int tradeSide, long long vol,
+                               double* pPrice, int* pFill) {
+    char payload[256];
+    sprintf_s(payload,
+        "\"ctidTraderAccountId\":%lld,"
+        "\"orderId\":%lld",
+        G.accountId, orderId);
+
+    const char* msgId = Utils::NextMsgId();
+    const char* msg = Protocol::BuildMessage(msgId, PayloadType::CancelOrderReq, payload);
+
+    Log::Info("TRADE", "NewOrder timeout: cancelling accepted order to avoid orphan (zorroId=%d orderId=%lld)",
+              zorroId, orderId);
+
+    {
+        CsLock lock(G.csTrading);
+        ResetTradingBuffer();
+        G.waitingForTrading = true;
+    }
+
+    if (!WebSocket::Send(msg)) {
+        G.waitingForTrading = false;
+        Log::Error("TRADE", "Cancel of timed-out order failed to send: orderId=%lld may fill as ORPHAN — check account!", orderId);
+        return 0;
+    }
+
+    for (int eventCount = 0; eventCount < 5; eventCount++) {
+        if (!WaitForTradingResponse(G.waitTime)) {
+            G.waitingForTrading = false;
+            Log::Error("TRADE", "Cancel of timed-out order: no response, orderId=%lld may fill as ORPHAN — check account!", orderId);
+            return 0;
+        }
+
+        CsLock tlock(G.csTrading);
+        int pt = G.tradingResponsePt;
+
+        if (pt == ToInt(PayloadType::ExecutionEvent)) {
+            int execType = G.tradingResponseExecType;
+            const char* buf = G.tradingResponseBuf;
+
+            if (execType == 5) {  // ORDER_CANCELLED — order is safely dead
+                G.waitingForTrading = false;
+                Log::Info("TRADE", "Timed-out order cancelled OK: zorroId=%d orderId=%lld", zorroId, orderId);
+                return 0;
+            }
+
+            if (execType == 3 || execType == 11) {
+                // Race: the order filled before the cancel reached the server.
+                // Adopt the fill so Zorro gets a valid trade instead of an orphan.
+                G.waitingForTrading = false;
+
+                long long posId = Protocol::ExtractInt64(buf, "positionId");
+                long long ordId = Protocol::ExtractInt64(buf, "orderId");
+                double execPrice = Protocol::ExtractDouble(buf, "executionPrice");
+                long long filledVol = Protocol::ExtractInt64(buf, "filledVolume");
+                if (filledVol <= 0) filledVol = vol;
+
+                double scale = pow(10.0, (double)G.moneyDigits);
+
+                {
+                    CsLock lock(G.csTrades);
+                    TradeInfo ti;
+                    ti.zorroId = zorroId;
+                    ti.positionId = posId;
+                    ti.orderId = (ordId > 0) ? ordId : orderId;
+                    ti.symbol = asset;
+                    ti.volume = filledVol;
+                    ti.tradeSide = tradeSide;
+                    ti.openPrice = execPrice;
+                    ti.commission = (double)Protocol::ExtractInt64(buf, "commission") / scale;
+                    ti.swap = (double)Protocol::ExtractInt64(buf, "swap") / scale;
+                    ti.openTime = Utils::NowMs();
+                    ti.open = true;
+                    G.trades[zorroId] = ti;
+                    G.posIdToZorroId[posId] = zorroId;
+                }
+
+                if (pPrice) *pPrice = execPrice;
+                if (pFill) {
+                    int filled = (int)(filledVol / 100LL);
+                    if (filled == 0) filled = 1;
+                    *pFill = filled;
+                }
+
+                Log::Info("TRADE", "Timed-out order FILLED during cancel: registered zorroId=%d posId=%lld price=%.5f",
+                          zorroId, posId, execPrice);
+                return zorroId;
+            }
+
+            // Other exec types — keep waiting for CANCELLED or FILLED
+            ResetTradingBuffer();
+            continue;
+        }
+
+        if (pt == ToInt(PayloadType::ErrorRes) || pt == ToInt(PayloadType::OrderErrorEvent)) {
+            G.waitingForTrading = false;
+            const char* desc = Protocol::ExtractString(G.tradingResponseBuf, "description");
+            Log::Error("TRADE", "Cancel of timed-out order rejected (%s): orderId=%lld may already be FILLED — check account!",
+                       desc ? desc : "?", orderId);
+            return 0;
+        }
+
+        ResetTradingBuffer();
+        continue;
+    }
+
+    G.waitingForTrading = false;
+    Log::Error("TRADE", "Cancel of timed-out order: too many events, orderId=%lld state unknown — check account!", orderId);
+    return 0;
+}
+
+// ============================================================
+// BuyOrder - open position or place pending order
+// ============================================================
+
+int BuyOrder(const char* asset, int amount, double stopDist, double limit,
+             double* pPrice, int* pFill) {
+
+    if (!asset || amount == 0 || !G.loggedIn) {
+        Log::Error("TRADE", "BuyOrder: invalid params (asset=%s amount=%d loggedIn=%d)",
+                   asset ? asset : "NULL", amount, (int)G.loggedIn);
+        return 0;
+    }
+
+    // Symbol lookup
+    SymbolInfo sym;
+    if (!Symbols::GetSymbol(asset, sym)) {
+        Log::Error("TRADE", "BuyOrder: symbol %s not found", asset);
+        return 0;
+    }
+
+    // Trade direction
+    int tradeSide = (amount > 0) ? 1 : 2;  // 1=BUY, 2=SELL
+
+    // Volume conversion: Amount is in base currency units (Zorro convention)
+    long long vol = ZorroToVolume(amount);
+
+    // Round to nearest stepVolume (cTrader requires volume to be a multiple of stepVolume)
+    if (sym.stepVolume > 0) {
+        vol = ((vol + sym.stepVolume / 2) / sym.stepVolume) * sym.stepVolume;
+    }
+
+    if (vol < sym.minVolume) {
+        Log::Error("TRADE", "BuyOrder: volume %lld below minimum %lld, REJECTED (increase Lots or LotAmount)",
+                   vol, sym.minVolume);
+        return 0;  // reject: don't clamp, avoids Amount/pFill mismatch
+    }
+    if (vol > sym.maxVolume) {
+        Log::Warn("TRADE", "BuyOrder: volume %lld above maximum %lld, clamping", vol, sym.maxVolume);
+        vol = sym.maxVolume;
+    }
+
+    // Reference price for SL calculation
+    double refPrice = (tradeSide == 1) ? sym.ask : sym.bid;
+    if (refPrice <= 0.0) {
+        Log::Error("TRADE", "BuyOrder: no price for %s (ask=%.5f bid=%.5f)", asset, sym.ask, sym.bid);
+        return 0;
+    }
+
+    // Margin guard: reject orders that cannot fit into free margin.
+    // 2026-05-04 incident: Z12 requested 4998 units US2000 on a $5.3k account;
+    // the clamped 250-unit chunks kept being re-sent for 33 hours while the
+    // server margin-called the account. Reject loudly here instead.
+    double estMargin = 0.0;
+    {
+        double units = (double)vol / 100.0;
+        if (sym.marginPerLot > 0.01) {
+            // marginPerLot = margin for one Zorro lot (lotAmount units),
+            // lotAmount = minVolume/100 clamped to min 1.0 (see ComputeLotAmount)
+            double lotAmount = (double)sym.minVolume / 100.0;
+            if (lotAmount < 1.0) lotAmount = 1.0;
+            estMargin = (units / lotAmount) * sym.marginPerLot;
+        } else if (G.leverageInCents > 0) {
+            // Fallback: notional / account leverage (most optimistic estimate)
+            estMargin = units * refPrice * Symbols::GetQuoteToDepositRate(sym)
+                        / ((double)G.leverageInCents / 100.0);
+        }
+    }
+
+    if (G.freeMargin > 0.0 && estMargin > G.freeMargin * 0.90) {
+        Log::Error("TRADE", "BuyOrder REJECTED by margin guard: %s vol=%lld needs ~%.2f margin, free=%.2f (90%% cap) — reduce position size!",
+                   asset, vol, estMargin, G.freeMargin);
+        return 0;
+    }
+
+    // Per-instance margin budget (MaxMarginPct in Plugin\cTrader.ini):
+    // the account-wide guard above cannot stop several strategies sharing one
+    // account from jointly filling it up — each one alone still "fits".
+    // This caps the total margin THIS instance may hold at pct% of equity.
+    if (G.maxMarginPct > 0.0 && G.equity > 0.0) {
+        double myUsed = 0.0;
+        {
+            CsLock lock(G.csTrades);
+            for (auto& kv : G.trades) {
+                const TradeInfo& t = kv.second;
+                if (!t.open || t.positionId <= 0) continue;
+                if (t.usedMargin > 0.0) {
+                    myUsed += t.usedMargin;
+                } else if (G.leverageInCents > 0) {
+                    // No server-reported margin — estimate from notional
+                    myUsed += ((double)t.volume / 100.0) * t.openPrice
+                              / ((double)G.leverageInCents / 100.0);
+                }
+            }
+        }
+        double budget = G.equity * G.maxMarginPct / 100.0;
+        if (myUsed + estMargin > budget) {
+            Log::Error("TRADE", "BuyOrder REJECTED by instance margin budget: %s used=%.2f + new ~%.2f > budget %.2f (%.0f%% of equity %.2f)",
+                       asset, myUsed, estMargin, budget, G.maxMarginPct, G.equity);
+            return 0;
+        }
+    }
+
+    // Jev gate (Plugin\JevGate\JevGate.ini, handled separately in jevgate/):
+    // asks the local Jev server before a NEW position; off when the file is missing.
+    if (!JevGate::Allow(asset, tradeSide, sym)) {
+        return 0;
+    }
+
+    // Determine order type from G.orderType (set by SET_ORDERTYPE)
+    // Zorro: 0=Market(GTC), 2=Limit, 3=Stop
+    // cTrader: 1=Market, 2=Limit, 3=Stop
+    int cTraderOrderType = 1;  // default Market
+    double orderPrice = 0.0;
+
+    // SET_LIMIT may provide the price via G.limitPrice instead of BrokerBuy2 Limit param
+    double effectiveLimit = limit;
+    if (effectiveLimit <= 0.0 && G.limitPrice > 0.0) {
+        effectiveLimit = G.limitPrice;
+    }
+
+    if ((G.orderType == 0 || G.orderType == 2) && effectiveLimit > 0.0) {
+        cTraderOrderType = 2;
+        orderPrice = effectiveLimit;
+    } else if (G.orderType == 3 && effectiveLimit > 0.0) {
+        // StopLimit: if both stopPrice (limit param) and limitPrice (SET_LIMIT) are set
+        if (G.limitPrice > 0.0 && effectiveLimit != G.limitPrice) {
+            cTraderOrderType = 6;  // StopLimit
+            orderPrice = effectiveLimit;  // BrokerBuy2 Limit param = stop trigger price
+            // G.limitPrice will be used as execution limit price below
+        } else {
+            cTraderOrderType = 3;
+            orderPrice = effectiveLimit;
+        }
+    }
+
+    // Allocate zorroId
+    int zorroId;
+    {
+        CsLock lock(G.csTrades);
+        zorroId = G.nextZorroId++;
+    }
+
+    // Build NewOrderReq payload
+    // Label: always starts with "z_{zorroId}" for position persistence after restart.
+    // When a per-instance tag is known, insert it with a "__" delimiter
+    // ("z_{id}__{tag}") so reconcile can tell this instance's positions apart
+    // from a sibling instance sharing the same cTrader account.
+    // SET_ORDERTEXT value (orderLabel) is appended last.
+    char labelBuf[128];
+    const std::string& tag = G.instanceTag;
+    if (!tag.empty() && !G.orderLabel.empty()) {
+        sprintf_s(labelBuf, "z_%d__%s_%s", zorroId, tag.c_str(), G.orderLabel.c_str());
+    } else if (!tag.empty()) {
+        sprintf_s(labelBuf, "z_%d__%s", zorroId, tag.c_str());
+    } else if (!G.orderLabel.empty()) {
+        sprintf_s(labelBuf, "z_%d_%s", zorroId, G.orderLabel.c_str());
+    } else {
+        sprintf_s(labelBuf, "z_%d", zorroId);
+    }
+
+    char payload[1024];
+    int off = sprintf_s(payload,
+        "\"ctidTraderAccountId\":%lld,"
+        "\"symbolId\":%lld,"
+        "\"orderType\":%d,"
+        "\"tradeSide\":%d,"
+        "\"volume\":%lld,"
+        "\"label\":\"%s\"",
+        G.accountId, sym.symbolId, cTraderOrderType, tradeSide, vol, labelBuf);
+
+    // Add limit/stop price for pending orders
+    if (cTraderOrderType == 2 && orderPrice > 0.0) {
+        off += sprintf_s(payload + off, sizeof(payload) - off,
+            ",\"limitPrice\":%.0f", orderPrice * PRICE_SCALE);
+    } else if (cTraderOrderType == 3 && orderPrice > 0.0) {
+        off += sprintf_s(payload + off, sizeof(payload) - off,
+            ",\"stopPrice\":%.0f", orderPrice * PRICE_SCALE);
+    } else if (cTraderOrderType == 6 && orderPrice > 0.0) {
+        // StopLimit: stopPrice = trigger, limitPrice = execution limit
+        off += sprintf_s(payload + off, sizeof(payload) - off,
+            ",\"stopPrice\":%.0f,\"limitPrice\":%.0f",
+            orderPrice * PRICE_SCALE, G.limitPrice * PRICE_SCALE);
+    }
+
+    // SL/TP handling:
+    // Zorro convention: stopDist > 0 = stop loss distance, stopDist < 0 = take profit distance
+    double slDist = 0.0;
+    double tpDist = 0.0;
+    if (stopDist > 0.0) {
+        slDist = stopDist;
+    } else if (stopDist < 0.0) {
+        tpDist = -stopDist;  // make positive
+    }
+
+    // SL for market orders: use relativeStopLoss (distance in points)
+    // cTrader rejects absolute SL/TP on market orders
+    if (cTraderOrderType == 1 && slDist > 0.0) {
+        long long slPoints = (long long)(slDist * PRICE_SCALE);
+        off += sprintf_s(payload + off, sizeof(payload) - off,
+            ",\"relativeStopLoss\":%lld", slPoints);
+    }
+
+    // TP for market orders: use relativeTakeProfit (distance in points)
+    if (cTraderOrderType == 1 && tpDist > 0.0) {
+        long long tpPoints = (long long)(tpDist * PRICE_SCALE);
+        off += sprintf_s(payload + off, sizeof(payload) - off,
+            ",\"relativeTakeProfit\":%lld", tpPoints);
+    }
+
+    // SL for limit/stop orders: use absolute stopLoss price
+    if (cTraderOrderType != 1 && slDist > 0.0) {
+        double slPrice = (tradeSide == 1) ? (orderPrice - slDist) : (orderPrice + slDist);
+        if (slPrice > 0.0) {
+            off += sprintf_s(payload + off, sizeof(payload) - off,
+                ",\"stopLoss\":%.0f", slPrice * PRICE_SCALE);
+        }
+    }
+
+    // TP for limit/stop orders: use absolute takeProfit price
+    if (cTraderOrderType != 1 && tpDist > 0.0) {
+        double tpPrice = (tradeSide == 1) ? (orderPrice + tpDist) : (orderPrice - tpDist);
+        if (tpPrice > 0.0) {
+            off += sprintf_s(payload + off, sizeof(payload) - off,
+                ",\"takeProfit\":%.0f", tpPrice * PRICE_SCALE);
+        }
+    }
+
+    const char* msgId = Utils::NextMsgId();
+
+    // Register pending action
+    {
+        CsLock lock(G.csTrades);
+        PendingAction pa;
+        pa.msgId = msgId;
+        pa.zorroId = zorroId;
+        pa.sentTimeMs = Utils::NowMs();
+        G.pendingActions[msgId] = pa;
+    }
+
+    const char* msg = Protocol::BuildMessage(msgId, PayloadType::NewOrderReq, payload);
+
+    Log::Info("TRADE", "NewOrder: %s %s amount=%d vol=%lld type=%d zorroId=%d SL=%.5f TP=%.5f limit=%.5f orderPrice=%.5f label=%s",
+              (tradeSide == 1) ? "BUY" : "SELL", asset, amount, vol, cTraderOrderType, zorroId,
+              slDist, tpDist, effectiveLimit, orderPrice, labelBuf);
+
+    // Set waiting flag and send
+    {
+        CsLock lock(G.csTrading);
+        ResetTradingBuffer();
+        G.waitingForTrading = true;
+    }
+
+    if (!WebSocket::Send(msg)) {
+        Log::Error("TRADE", "NewOrder send failed");
+        G.waitingForTrading = false;
+        CsLock lock(G.csTrades);
+        G.pendingActions.erase(msgId);
+        return 0;
+    }
+
+    // Wait for response — market orders may get multiple ACCEPTED events
+    // before FILLED (order accepted + SL modification etc.)
+    // Loop until we get FILLED, ERROR, or timeout.
+    long long acceptedOrderId = 0;  // orderId from ACCEPTED, needed to cancel on timeout
+    for (int eventCount = 0; eventCount < 10; eventCount++) {
+        bool gotResponse = WaitForTradingResponse(G.waitTime);
+
+        if (!gotResponse) {
+            G.waitingForTrading = false;
+            Log::Error("TRADE", "NewOrder timeout (%dms) after %d events", G.waitTime, eventCount);
+            {
+                CsLock lock(G.csTrades);
+                G.pendingActions.erase(msgId);
+            }
+            // The order may sit ACCEPTED on the server and fill after the
+            // market break ends — cancel it (or adopt the fill if it races in).
+            if (acceptedOrderId > 0) {
+                int late = CancelTimedOutOrder(acceptedOrderId, zorroId, asset,
+                                               tradeSide, vol, pPrice, pFill);
+                if (late > 0) {
+                    G.limitPrice = 0.0;
+                    G.orderLabel.clear();
+                    return late;
+                }
+            }
+            return 0;
+        }
+
+        // Process response (hold lock while reading buffer)
+        CsLock tlock(G.csTrading);
+        int pt = G.tradingResponsePt;
+
+        // ErrorRes from server
+        if (pt == ToInt(PayloadType::ErrorRes)) {
+            G.waitingForTrading = false;
+            const char* desc = Protocol::ExtractString(G.tradingResponseBuf, "description");
+            Log::Error("TRADE", "NewOrder rejected by server: %s", desc);
+            CsLock lock(G.csTrades);
+            G.pendingActions.erase(msgId);
+            return 0;
+        }
+
+        // OrderErrorEvent
+        if (pt == ToInt(PayloadType::OrderErrorEvent)) {
+            G.waitingForTrading = false;
+            const char* desc = Protocol::ExtractString(G.tradingResponseBuf, "description");
+            Log::Error("TRADE", "Order error: %s", desc);
+            CsLock lock(G.csTrades);
+            G.pendingActions.erase(msgId);
+            return 0;
+        }
+
+        // ExecutionEvent
+        if (pt == ToInt(PayloadType::ExecutionEvent)) {
+            int execType = G.tradingResponseExecType;
+            const char* buf = G.tradingResponseBuf;
+
+            if (execType == 3 || execType == 11) {
+                // FILLED or PARTIAL_FILL — this is what we want
+                G.waitingForTrading = false;
+
+                long long posId = Protocol::ExtractInt64(buf, "positionId");
+                long long ordId = Protocol::ExtractInt64(buf, "orderId");
+                // executionPrice is a JSON double (e.g. 1.18676), NOT scaled integer
+                double execPrice = Protocol::ExtractDouble(buf, "executionPrice");
+                long long filledVol = Protocol::ExtractInt64(buf, "filledVolume");
+                if (filledVol <= 0) filledVol = vol;
+
+                double scale = pow(10.0, (double)G.moneyDigits);
+                double commission = (double)Protocol::ExtractInt64(buf, "commission") / scale;
+                double swap = (double)Protocol::ExtractInt64(buf, "swap") / scale;
+
+                // Register trade
+                {
+                    CsLock lock(G.csTrades);
+                    TradeInfo ti;
+                    ti.zorroId = zorroId;
+                    ti.positionId = posId;
+                    ti.orderId = ordId;
+                    ti.symbol = asset;
+                    ti.volume = filledVol;
+                    ti.tradeSide = tradeSide;
+                    ti.openPrice = execPrice;
+                    ti.stopLoss = 0.0;
+                    ti.takeProfit = 0.0;
+                    ti.commission = commission;
+                    ti.swap = swap;
+                    ti.openTime = Utils::NowMs();
+                    ti.open = true;
+                    // Extract usedMargin from FILLED event's position data
+                    if (Protocol::HasField(buf, "usedMargin")) {
+                        ti.usedMargin = (double)Protocol::ExtractInt64(buf, "usedMargin") / scale;
+                    }
+                    G.trades[zorroId] = ti;
+                    G.posIdToZorroId[posId] = zorroId;
+                    G.pendingActions.erase(msgId);
+                }
+
+                if (pPrice) *pPrice = execPrice;
+                // pFill must ALWAYS be positive in BrokerBuy2 (filled amount).
+                // Negative pFill = "partial fill, N remaining" in Zorro API.
+                // Trade direction is already encoded in the Amount parameter.
+                if (pFill) {
+                    int filled = (int)(filledVol / 100LL);
+                    if (filled == 0) filled = 1;
+                    *pFill = filled;  // always positive!
+                }
+
+                Log::Info("TRADE", "Order filled: zorroId=%d posId=%lld price=%.5f vol=%lld",
+                          zorroId, posId, execPrice, filledVol);
+                // Reset per-order state
+                G.limitPrice = 0.0;
+                G.orderLabel.clear();
+                return zorroId;
+            }
+            else if (execType == 2) {
+                // ACCEPTED
+                if (cTraderOrderType == 1) {
+                    // Market order: server sends ACCEPTED before FILLED, skip and wait.
+                    // Remember orderId so the order can be cancelled on timeout.
+                    long long oid = Protocol::ExtractInt64(buf, "orderId");
+                    if (oid > 0) acceptedOrderId = oid;
+                    Log::Diag(1, "TRADE Market order accepted (event %d), waiting for fill... zorroId=%d orderId=%lld",
+                              eventCount, zorroId, oid);
+                    ResetTradingBuffer();
+                    // waitingForTrading stays true — NetworkThread keeps forwarding
+                    continue;
+                }
+
+                // Limit/Stop order: ACCEPTED = pending, return -zorroId
+                G.waitingForTrading = false;
+                long long ordId = Protocol::ExtractInt64(buf, "orderId");
+
+                {
+                    CsLock lock(G.csTrades);
+                    TradeInfo ti;
+                    ti.zorroId = zorroId;
+                    ti.orderId = ordId;
+                    ti.symbol = asset;
+                    ti.volume = vol;
+                    ti.tradeSide = tradeSide;
+                    ti.openPrice = orderPrice;
+                    ti.stopLoss = 0.0;
+                    ti.takeProfit = 0.0;
+                    ti.open = true;
+                    G.trades[zorroId] = ti;
+                    G.pendingActions.erase(msgId);
+                }
+
+                if (pPrice) *pPrice = orderPrice;
+
+                Log::Info("TRADE", "Pending order accepted: zorroId=%d orderId=%lld price=%.5f",
+                          zorroId, ordId, orderPrice);
+                // Reset per-order state
+                G.limitPrice = 0.0;
+                G.orderLabel.clear();
+                return -zorroId;  // negative = pending
+            }
+            else if (execType == 7) {
+                // REJECTED
+                G.waitingForTrading = false;
+                const char* reason = Protocol::ExtractString(buf, "reasonCode");
+                Log::Error("TRADE", "Order rejected: execType=%d reason=%s", execType, reason);
+                CsLock lock(G.csTrades);
+                G.pendingActions.erase(msgId);
+                return 0;
+            }
+            else {
+                // Other execution types (4=ORDER_REPLACED, 5=ORDER_CANCELLED, etc.)
+                // For market orders: skip and keep waiting for FILLED
+                if (cTraderOrderType == 1) {
+                    Log::Diag(1, "TRADE Market order event execType=%d (event %d), skipping...", execType, eventCount);
+                    ResetTradingBuffer();
+                    continue;
+                }
+                G.waitingForTrading = false;
+                Log::Warn("TRADE", "Unexpected execType=%d for NewOrder", execType);
+                CsLock lock(G.csTrades);
+                G.pendingActions.erase(msgId);
+                return 0;
+            }
+        }
+
+        // Unknown payloadType — for market orders, skip and keep waiting
+        if (cTraderOrderType == 1) {
+            Log::Diag(1, "TRADE Market order: skipping unexpected pt=%d (event %d)", pt, eventCount);
+            ResetTradingBuffer();
+            continue;
+        }
+
+        G.waitingForTrading = false;
+        Log::Warn("TRADE", "Unexpected response pt=%d for NewOrder", pt);
+        {
+            CsLock lock(G.csTrades);
+            G.pendingActions.erase(msgId);
+        }
+        return 0;
+    }
+
+    // Exhausted event loop iterations
+    G.waitingForTrading = false;
+    Log::Error("TRADE", "Market order: too many events without FILLED, giving up");
+    {
+        CsLock lock(G.csTrades);
+        G.pendingActions.erase(msgId);
+    }
+    // Reset per-order state
+    G.limitPrice = 0.0;
+    G.orderLabel.clear();
+    return 0;
+}
+
+// ============================================================
+// SellOrder - close or reduce position
+// ============================================================
+
+int SellOrder(int tradeId, int amount, double limit,
+              double* pClose, double* pCost, double* pProfit, int* pFill) {
+
+    if (!G.loggedIn) return 0;
+
+    // Zorro may pass negative tradeId (from pending order return value)
+    int lookupId = abs(tradeId);
+
+    // Lookup trade — exact match, then alias cache, then symbol fallback
+    TradeInfo ti;
+    {
+        CsLock lock(G.csTrades);
+        auto it = G.trades.find(lookupId);
+
+        // Check alias cache
+        if (it == G.trades.end()) {
+            auto aliasIt = G.tradeIdAlias.find(lookupId);
+            if (aliasIt != G.tradeIdAlias.end()) {
+                it = G.trades.find(aliasIt->second);
+                if (it != G.trades.end()) {
+                    lookupId = aliasIt->second;
+                    Log::Diag(1, "TRADE SellOrder: tradeId=%d resolved via alias to zorroId=%d",
+                              tradeId, lookupId);
+                }
+            }
+        }
+
+        // Fallback: search by symbol (only if single open position)
+        if (it == G.trades.end() && !G.currentSymbol.empty()) {
+            int matchId = 0;
+            int matchCount = 0;
+            for (auto& kv : G.trades) {
+                if (kv.second.open && kv.second.positionId > 0 &&
+                    kv.second.symbol == G.currentSymbol) {
+                    matchId = kv.first;
+                    matchCount++;
+                }
+            }
+            if (matchCount == 1) {
+                it = G.trades.find(matchId);
+                lookupId = matchId;
+                G.tradeIdAlias[abs(tradeId)] = matchId;
+                Log::Diag(1, "TRADE SellOrder: tradeId=%d not found, fallback to zorroId=%d (%s)",
+                          tradeId, lookupId, G.currentSymbol.c_str());
+            } else if (matchCount > 1) {
+                Log::Warn("TRADE", "SellOrder: tradeId=%d not found, %d open trades for %s — ambiguous",
+                           tradeId, matchCount, G.currentSymbol.c_str());
+            }
+        }
+
+        if (it == G.trades.end()) {
+            Log::Error("TRADE", "SellOrder: tradeId=%d (lookup=%d) not found", tradeId, lookupId);
+            return 0;
+        }
+        ti = it->second;
+    }
+
+    if (!ti.open) {
+        Log::Warn("TRADE", "SellOrder: tradeId=%d already closed", tradeId);
+        return 0;
+    }
+
+    if (ti.positionId <= 0) {
+        // This is a pending order, not a filled position - cancel it
+        Log::Info("TRADE", "SellOrder: tradeId=%d is pending order, cancelling", tradeId);
+        return CancelOrder(lookupId) ? 0 : lookupId;
+    }
+
+    // Get symbol info for volume conversion
+    SymbolInfo sym;
+    if (!Symbols::GetSymbol(ti.symbol.c_str(), sym)) {
+        Log::Error("TRADE", "SellOrder: symbol %s not found", ti.symbol.c_str());
+        return lookupId;
+    }
+
+    // Volume to close
+    long long closeVol = ti.volume;  // default: close all
+    if (amount != 0) {
+        closeVol = ZorroToVolume(amount);
+        // Round to nearest stepVolume
+        if (sym.stepVolume > 0) {
+            closeVol = ((closeVol + sym.stepVolume / 2) / sym.stepVolume) * sym.stepVolume;
+        }
+        if (closeVol > ti.volume) closeVol = ti.volume;
+    }
+
+    // Retry loop: attempt close, verify position state on failure
+    static const int MAX_CLOSE_ATTEMPTS = 3;
+
+    for (int attempt = 0; attempt < MAX_CLOSE_ATTEMPTS; attempt++) {
+
+        if (attempt > 0) {
+            Log::Info("TRADE", "ClosePosition retry %d/%d: tradeId=%d posId=%lld",
+                      attempt + 1, MAX_CLOSE_ATTEMPTS, lookupId, ti.positionId);
+            Sleep(500 * attempt);
+        }
+
+        // Build ClosePositionReq payload
+        char payload[512];
+        sprintf_s(payload,
+            "\"ctidTraderAccountId\":%lld,"
+            "\"positionId\":%lld,"
+            "\"volume\":%lld",
+            G.accountId, ti.positionId, closeVol);
+
+        const char* msgId = Utils::NextMsgId();
+        const char* msg = Protocol::BuildMessage(msgId, PayloadType::ClosePositionReq, payload);
+
+        Log::Info("TRADE", "ClosePosition: tradeId=%d posId=%lld vol=%lld/%lld (attempt %d)",
+                  lookupId, ti.positionId, closeVol, ti.volume, attempt + 1);
+
+        // Set waiting flag and send
+        {
+            CsLock lock(G.csTrading);
+            ResetTradingBuffer();
+            G.waitingForTrading = true;
+        }
+
+        if (!WebSocket::Send(msg)) {
+            Log::Error("TRADE", "ClosePosition send failed");
+            G.waitingForTrading = false;
+            // Check if position was closed externally (SL/TP) before retrying
+            goto check_if_closed;
+        }
+
+        // Wait for response — ClosePosition also gets ACCEPTED before FILLED
+        for (int eventCount = 0; eventCount < 10; eventCount++) {
+            bool gotResponse = WaitForTradingResponse(G.waitTime);
+
+            if (!gotResponse) {
+                G.waitingForTrading = false;
+                Log::Error("TRADE", "ClosePosition timeout (%dms) after %d events", G.waitTime, eventCount);
+                goto check_if_closed;
+            }
+
+            CsLock tlock(G.csTrading);
+            int pt = G.tradingResponsePt;
+
+            if (pt == ToInt(PayloadType::ErrorRes)) {
+                G.waitingForTrading = false;
+                const char* desc = Protocol::ExtractString(G.tradingResponseBuf, "description");
+                Log::Error("TRADE", "ClosePosition error: %s", desc);
+                goto check_if_closed;
+            }
+
+            if (pt == ToInt(PayloadType::OrderErrorEvent)) {
+                G.waitingForTrading = false;
+                const char* desc = Protocol::ExtractString(G.tradingResponseBuf, "description");
+                Log::Error("TRADE", "ClosePosition order error: %s", desc);
+                goto check_if_closed;
+            }
+
+            if (pt == ToInt(PayloadType::ExecutionEvent)) {
+                int execType = G.tradingResponseExecType;
+                const char* buf = G.tradingResponseBuf;
+
+                if (execType == 3 || execType == 11) {
+                    // FILLED or PARTIAL_FILL
+                    G.waitingForTrading = false;
+
+                    // executionPrice is a JSON double
+                    double closePrice = Protocol::ExtractDouble(buf, "executionPrice");
+                    long long filledVol = Protocol::ExtractInt64(buf, "filledVolume");
+                    if (filledVol <= 0) filledVol = closeVol;
+
+                    bool fullyClosed = IsPositionClosed(buf);
+                    if (!fullyClosed && filledVol >= ti.volume) {
+                        fullyClosed = true;
+                    }
+
+                    double profit = 0.0;
+                    double commission = 0.0;
+                    double swap = 0.0;
+                    bool usedServerPnL = false;
+
+                    // Try server-calculated P&L from closePositionDetail
+                    // grossProfit is unique to closePositionDetail (no field name conflicts)
+                    const char* cpdStart = strstr(buf, "\"closePositionDetail\"");
+                    if (cpdStart) {
+                        const char* cpdObj = strchr(cpdStart, '{');
+                        if (cpdObj) {
+                            // Extract from within closePositionDetail sub-object
+                            // to avoid conflicts with deal/position-level swap/commission
+                            int md = Protocol::ExtractInt(cpdObj, "moneyDigits");
+                            double detailScale = (md > 0) ? pow(10.0, (double)md) : pow(10.0, (double)G.moneyDigits);
+
+                            long long grossRaw = Protocol::ExtractInt64(cpdObj, "grossProfit");
+                            long long swapRaw = Protocol::ExtractInt64(cpdObj, "swap");
+                            long long commRaw = Protocol::ExtractInt64(cpdObj, "commission");
+
+                            double grossProfit = (double)grossRaw / detailScale;
+                            swap = (double)swapRaw / detailScale;
+                            commission = (double)commRaw / detailScale;
+
+                            // NET P&L = gross + swap + commission (swap/commission are negative costs)
+                            profit = grossProfit + swap + commission;
+                            usedServerPnL = true;
+
+                            Log::Info("TRADE", "CloseDetail: gross=%.2f swap=%.2f comm=%.2f NET=%.2f (raw g=%lld s=%lld c=%lld scale=%.0f)",
+                                      grossProfit, swap, commission, profit, grossRaw, swapRaw, commRaw, detailScale);
+                        }
+                    }
+
+                    // Fallback: local calculation (if server didn't provide closePositionDetail)
+                    if (!usedServerPnL) {
+                        double scale = pow(10.0, (double)G.moneyDigits);
+                        commission = (double)Protocol::ExtractInt64(buf, "commission") / scale;
+                        swap = (double)Protocol::ExtractInt64(buf, "swap") / scale;
+
+                        double lotAmount = (double)sym.lotSize / 100.0;
+                        double lots = (double)filledVol / (double)sym.lotSize;
+                        double priceDiff = (ti.tradeSide == 1)
+                            ? (closePrice - ti.openPrice)
+                            : (ti.openPrice - closePrice);
+                        profit = priceDiff * lots * lotAmount;
+
+                        // Cross-currency conversion: quote -> deposit (M9: full chain)
+                        profit *= Symbols::GetQuoteToDepositRate(sym);
+
+                        // Include costs for NET consistency with server path
+                        profit += ti.swap + ti.commission + swap + commission;
+                    }
+
+                    if (pClose) *pClose = closePrice;
+                    if (pCost) *pCost = 0.0;  // costs already in NET profit
+                    if (pProfit) *pProfit = profit;
+                    if (pFill) *pFill = VolumeToZorro(filledVol, ti.tradeSide);
+
+                    // Update trade state
+                    {
+                        CsLock lock(G.csTrades);
+                        auto it = G.trades.find(lookupId);
+                        if (it != G.trades.end()) {
+                            if (fullyClosed) {
+                                it->second.open = false;
+                                it->second.closePrice = closePrice;
+                                it->second.profit = profit;
+                                if (usedServerPnL) {
+                                    // Server values are position totals — SET directly
+                                    it->second.commission = commission;
+                                    it->second.swap = swap;
+                                } else {
+                                    it->second.commission += commission;
+                                    it->second.swap += swap;
+                                }
+                            } else {
+                                it->second.volume -= filledVol;
+                                it->second.commission += commission;
+                                it->second.swap += swap;
+                            }
+                        }
+                    }
+
+                    Log::Info("TRADE", "Position %s: tradeId=%d price=%.5f profit=%.2f %s%s",
+                              fullyClosed ? "closed" : "partially closed",
+                              lookupId, closePrice, profit,
+                              fullyClosed ? "" : "(still open)",
+                              usedServerPnL ? " [server PnL]" : " [local calc]");
+
+                    // BrokerSell2 return: tradeId = success, 0 = failure
+                    return lookupId;
+                }
+                else if (execType == 2 || execType == 4 || execType == 5) {
+                    // ACCEPTED / ORDER_REPLACED / ORDER_CANCELLED
+                    // Close operation gets ACCEPTED before FILLED, skip and wait
+                    Log::Diag(1, "TRADE ClosePosition event execType=%d (event %d), waiting...", execType, eventCount);
+                    ResetTradingBuffer();
+                    continue;
+                }
+                else {
+                    // Other execution types — skip and keep waiting
+                    Log::Diag(1, "TRADE ClosePosition event execType=%d (event %d), skipping...", execType, eventCount);
+                    ResetTradingBuffer();
+                    continue;
+                }
+            }
+
+            // Unknown payloadType — skip and keep waiting
+            Log::Diag(1, "TRADE ClosePosition: skipping unexpected pt=%d (event %d)", pt, eventCount);
+            ResetTradingBuffer();
+            continue;
+        }
+
+        G.waitingForTrading = false;
+        Log::Error("TRADE", "ClosePosition: too many events without FILLED");
+        // Fall through to check_if_closed
+
+check_if_closed:
+        // Close command failed — check if position was already closed (SL/TP/external)
+        // Step 1: Give async ExecutionEvent a moment to arrive and update G.trades
+        Sleep(200);
+
+        {
+            CsLock lock(G.csTrades);
+            auto it = G.trades.find(lookupId);
+            if (it != G.trades.end() && !it->second.open) {
+                // Position was closed externally (SL/TP hit during our close attempt)
+                TradeInfo& closed = it->second;
+                if (pClose) *pClose = closed.closePrice;
+                if (pProfit) *pProfit = closed.profit;
+                if (pCost) *pCost = 0.0;
+                if (pFill) *pFill = VolumeToZorro(ti.volume, ti.tradeSide);
+
+                Log::Info("TRADE", "ClosePosition: tradeId=%d already closed externally (SL/TP), price=%.5f profit=%.2f",
+                          lookupId, closed.closePrice, closed.profit);
+                return lookupId;
+            }
+        }
+
+        // Step 2: Query server for deal history of this position (DealListByPositionIdReq 2179)
+        {
+            double serverClosePrice = 0.0, serverProfit = 0.0;
+            if (QueryClosedPositionFromServer(ti.positionId, &serverClosePrice, &serverProfit)) {
+                // Server confirmed position is closed — update local state and return success
+                {
+                    CsLock lock(G.csTrades);
+                    auto it = G.trades.find(lookupId);
+                    if (it != G.trades.end()) {
+                        it->second.open = false;
+                        it->second.closePrice = serverClosePrice;
+                        it->second.profit = serverProfit;
+                    }
+                }
+
+                if (pClose) *pClose = serverClosePrice;
+                if (pProfit) *pProfit = serverProfit;
+                if (pCost) *pCost = 0.0;
+                if (pFill) *pFill = VolumeToZorro(ti.volume, ti.tradeSide);
+
+                Log::Info("TRADE", "ClosePosition: tradeId=%d confirmed closed by server query, price=%.5f profit=%.2f",
+                          lookupId, serverClosePrice, serverProfit);
+                return lookupId;
+            }
+
+            Log::Info("TRADE", "ClosePosition: server query found no closing deal — position still open");
+        }
+
+        // Step 3: Position still open — retry if attempts remain
+        if (attempt < MAX_CLOSE_ATTEMPTS - 1) {
+            continue;  // retry close
+        }
+
+    } // end retry loop
+
+    Log::Error("TRADE", "ClosePosition failed after %d attempts: tradeId=%d posId=%lld",
+               MAX_CLOSE_ATTEMPTS, lookupId, ti.positionId);
+    return 0;  // all retries exhausted = failure
+}
+
+// ============================================================
+// GetTradeStatus - no network call, uses local state
+// ============================================================
+
+int GetTradeStatus(int tradeId, double* pOpen, double* pClose,
+                   double* pCost, double* pProfit) {
+    int lookupId = abs(tradeId);
+    TradeInfo ti;
+    {
+        CsLock lock(G.csTrades);
+        auto it = G.trades.find(lookupId);
+
+        // Check alias cache first
+        if (it == G.trades.end()) {
+            auto aliasIt = G.tradeIdAlias.find(lookupId);
+            if (aliasIt != G.tradeIdAlias.end()) {
+                it = G.trades.find(aliasIt->second);
+                if (it != G.trades.end()) lookupId = aliasIt->second;
+            }
+        }
+
+        // Fallback: search by current symbol (only if single open position for that symbol)
+        if (it == G.trades.end() && !G.currentSymbol.empty()) {
+            int matchId = 0;
+            int matchCount = 0;
+            for (auto& kv : G.trades) {
+                if (kv.second.open && kv.second.positionId > 0 &&
+                    kv.second.symbol == G.currentSymbol) {
+                    matchId = kv.first;
+                    matchCount++;
+                }
+            }
+            // Only use fallback if exactly ONE open position for this symbol
+            // to avoid ambiguity between LONG and SHORT
+            if (matchCount == 1) {
+                it = G.trades.find(matchId);
+                lookupId = matchId;
+                G.tradeIdAlias[abs(tradeId)] = matchId;  // cache the alias
+                Log::Diag(1, "TRADE GetTradeStatus: tradeId=%d fallback to zorroId=%d (%s)",
+                          tradeId, lookupId, G.currentSymbol.c_str());
+            }
+        }
+
+        if (it == G.trades.end()) {
+            Log::Warn("TRADE", "GetTradeStatus: tradeId=%d not found -> return -1 (closed)", tradeId);
+            return -1;  // trade not found = closed (Zorro will book P&L)
+        }
+        ti = it->second;
+    }
+
+    if (!ti.open) {
+        // Fill in closing data so Zorro books the correct server-side profit
+        if (pOpen) *pOpen = ti.openPrice;
+        if (pClose) *pClose = ti.closePrice;
+        if (pProfit) *pProfit = ti.profit;  // Server NET P&L from ExecutionEvent
+        if (pCost) *pCost = 0.0;            // Already in NET profit
+        Log::Diag(1, "TRADE GetTradeStatus: tradeId=%d closed profit=%.2f -> return -1", tradeId, ti.profit);
+        return -1;  // trade closed = Zorro books P&L
+    }
+
+    // Get current close price
+    SymbolInfo sym;
+    double closePrice = 0.0;
+    if (Symbols::GetSymbol(ti.symbol.c_str(), sym)) {
+        closePrice = (ti.tradeSide == 1) ? sym.bid : sym.ask;
+    }
+
+    if (pOpen) *pOpen = ti.openPrice;
+    if (pClose) *pClose = closePrice;
+
+    // Profit: prefer server-calculated PnL from cache (2187/2188)
+    {
+        double profit = 0.0;
+        bool usedCache = false;
+
+        // Refresh PnL cache if stale (>3 seconds) - sends 2187 from main thread
+        ULONGLONG now = GetTickCount64();
+        if (ti.positionId > 0 && (G.pnlCacheTimeMs == 0 || (now - G.pnlCacheTimeMs) > 3000)) {
+            RefreshUnrealizedPnL();
+        }
+
+        // Try server PnL cache — use NET P&L (includes swap+commission) to match cTrader dashboard
+        if (ti.positionId > 0 && G.pnlCacheTimeMs > 0) {
+            CsLock lock(G.csTrades);
+            auto it = G.pnlCache.find(ti.positionId);
+            if (it != G.pnlCache.end()) {
+                profit = it->second.net;
+                usedCache = true;
+            }
+        }
+
+        // Fallback: local calculation with cross-currency conversion
+        if (!usedCache) {
+            double priceDiff = (ti.tradeSide == 1)
+                ? (closePrice - ti.openPrice)
+                : (ti.openPrice - closePrice);
+            profit = priceDiff * (double)ti.volume / 100.0;
+
+            // Cross-currency conversion: quote -> deposit (using 2118 chain)
+            profit *= Symbols::GetQuoteToDepositRate(sym);
+        }
+
+        if (pProfit) *pProfit = profit;
+        // When using cache NET, costs are already in profit → pCost = 0
+        // When using fallback gross, costs are separate in pCost
+        if (pCost) *pCost = usedCache ? 0.0 : (ti.swap + ti.commission);
+    }
+
+    // BrokerTrade return value = nLotAmount, ALWAYS POSITIVE (Zorro convention)
+    // Direction is not encoded in the return value.
+    int lotAmount = (int)(ti.volume / 100LL);
+    if (lotAmount == 0) lotAmount = 1;
+    return lotAmount;
+}
+
+// ============================================================
+// HandleExecutionEvent - called from NetworkThread
+// ============================================================
+
+void HandleExecutionEvent(const char* buffer, int bufLen) {
+    int execType = Protocol::ExtractInt(buffer, "executionType");
+
+    if (G.waitingForTrading) {
+        // Wait for main thread to consume previous event before overwriting.
+        // Without this, fast consecutive events (ACCEPTED → FILLED → SL_ACCEPTED)
+        // can cause FILLED to be overwritten by SL_ACCEPTED before main thread reads it.
+        for (int i = 0; i < 500 && G.tradingResponseReady; i++) {
+            Sleep(1);
+        }
+
+        // Forward to waiting BuyOrder/SellOrder via shared buffer
+        CsLock lock(G.csTrading);
+        int copyLen = (bufLen < State::TRADE_BUF_SIZE - 1) ? bufLen : State::TRADE_BUF_SIZE - 1;
+        memcpy(G.tradingResponseBuf, buffer, copyLen);
+        G.tradingResponseBuf[copyLen] = '\0';
+        G.tradingResponsePt = ToInt(PayloadType::ExecutionEvent);
+        G.tradingResponseExecType = execType;
+        G.tradingResponseReady = true;
+        return;
+    }
+
+    // Async event: SL/TP trigger, swap, etc.
+    long long posId = Protocol::ExtractInt64(buffer, "positionId");
+    int posStatusInt = Protocol::ExtractInt(buffer, "positionStatus");
+
+    Log::Diag(1, "TRADE Async ExecutionEvent: execType=%d posId=%lld status=%d",
+              execType, posId, posStatusInt);
+
+    if (posId > 0) {
+        CsLock lock(G.csTrades);
+        auto posIt = G.posIdToZorroId.find(posId);
+        if (posIt != G.posIdToZorroId.end()) {
+            int zid = posIt->second;
+            auto tradeIt = G.trades.find(zid);
+            if (tradeIt != G.trades.end()) {
+                TradeInfo& ti = tradeIt->second;
+
+                // Update swap from execution event
+                double scale = pow(10.0, (double)G.moneyDigits);
+                if (execType == 9) {  // Swap
+                    long long swapRaw = Protocol::ExtractInt64(buffer, "swap");
+                    ti.swap = (double)swapRaw / scale;
+                }
+
+                // Position closed (SL/TP hit, liquidation, etc.)
+                // positionStatus: 1=OPEN, 2=CLOSED
+                if (posStatusInt == 2) {
+                    ti.open = false;
+                    // executionPrice is a JSON double
+                    double closePrice = Protocol::ExtractDouble(buffer, "executionPrice");
+                    ti.closePrice = closePrice;
+
+                    // Extract server P&L from closePositionDetail if available
+                    const char* cpdStart = strstr(buffer, "\"closePositionDetail\"");
+                    if (cpdStart) {
+                        const char* cpdObj = strchr(cpdStart, '{');
+                        if (cpdObj) {
+                            int md = Protocol::ExtractInt(cpdObj, "moneyDigits");
+                            double scale = (md > 0) ? pow(10.0, (double)md) : pow(10.0, (double)G.moneyDigits);
+
+                            long long grossRaw = Protocol::ExtractInt64(cpdObj, "grossProfit");
+                            long long swapRaw = Protocol::ExtractInt64(cpdObj, "swap");
+                            long long commRaw = Protocol::ExtractInt64(cpdObj, "commission");
+
+                            ti.commission = (double)commRaw / scale;
+                            ti.swap = (double)swapRaw / scale;
+                            ti.profit = ((double)grossRaw + (double)swapRaw + (double)commRaw) / scale;
+
+                            Log::Info("TRADE", "Position auto-closed: zorroId=%d posId=%lld at %.5f NET=%.2f [server PnL]",
+                                      zid, posId, closePrice, ti.profit);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ============================================================
+// HandleOrderErrorEvent - called from NetworkThread
+// ============================================================
+
+void HandleOrderErrorEvent(const char* buffer, int bufLen) {
+    if (G.waitingForTrading) {
+        // Wait for main thread to consume previous event
+        for (int i = 0; i < 500 && G.tradingResponseReady; i++) {
+            Sleep(1);
+        }
+        // Forward to waiting BuyOrder/SellOrder
+        CsLock lock(G.csTrading);
+        int copyLen = (bufLen < State::TRADE_BUF_SIZE - 1) ? bufLen : State::TRADE_BUF_SIZE - 1;
+        memcpy(G.tradingResponseBuf, buffer, copyLen);
+        G.tradingResponseBuf[copyLen] = '\0';
+        G.tradingResponsePt = ToInt(PayloadType::OrderErrorEvent);
+        G.tradingResponseExecType = 0;
+        G.tradingResponseReady = true;
+        return;
+    }
+
+    // Async error
+    const char* desc = Protocol::ExtractString(buffer, "description");
+    Log::Error("TRADE", "Async OrderError: %s", desc);
+}
+
+// ============================================================
+// QueryClosedPositionFromServer - DealListByPositionIdReq 2179
+// ============================================================
+
+bool QueryClosedPositionFromServer(long long positionId, double* closePrice, double* profit) {
+    if (!G.loggedIn || positionId <= 0) return false;
+
+    char payload[256];
+    sprintf_s(payload,
+        "\"ctidTraderAccountId\":%lld,"
+        "\"positionId\":%lld",
+        G.accountId, positionId);
+
+    const char* msgId = Utils::NextMsgId();
+    const char* msg = Protocol::BuildMessage(msgId, PayloadType::DealListByPositionIdReq, payload);
+
+    Log::Info("TRADE", "QueryClosedPosition: posId=%lld (DealListByPositionIdReq)", positionId);
+
+    // Use trading buffer pattern (NetworkThread forwards DealListByPositionIdRes)
+    {
+        CsLock lock(G.csTrading);
+        ResetTradingBuffer();
+        G.waitingForTrading = true;
+    }
+
+    if (!WebSocket::Send(msg)) {
+        Log::Error("TRADE", "QueryClosedPosition send failed");
+        G.waitingForTrading = false;
+        return false;
+    }
+
+    bool gotResponse = WaitForTradingResponse(G.waitTime);
+    G.waitingForTrading = false;
+
+    if (!gotResponse) {
+        Log::Error("TRADE", "QueryClosedPosition timeout");
+        return false;
+    }
+
+    CsLock tlock(G.csTrading);
+    int pt = G.tradingResponsePt;
+
+    if (pt == ToInt(PayloadType::ErrorRes)) {
+        const char* desc = Protocol::ExtractString(G.tradingResponseBuf, "description");
+        Log::Error("TRADE", "QueryClosedPosition error: %s", desc);
+        return false;
+    }
+
+    if (pt != ToInt(PayloadType::DealListByPositionIdRes)) {
+        Log::Error("TRADE", "QueryClosedPosition: unexpected pt=%d", pt);
+        return false;
+    }
+
+    // Parse deal array — look for SELL deal (close side) with closingDeal=true or last deal
+    const char* buf = G.tradingResponseBuf;
+    const char* arr = Protocol::ExtractArray(buf, "deal");
+    if (!arr || *arr == '\0' || (*arr == '[' && *(arr + 1) == ']')) {
+        Log::Warn("TRADE", "QueryClosedPosition: no deals found for posId=%lld", positionId);
+        return false;
+    }
+
+    int dealCount = Protocol::CountArrayElements(arr);
+    Log::Diag(1, "TRADE QueryClosedPosition: %d deals for posId=%lld", dealCount, positionId);
+
+    // Find the closing deal: look for the deal with closePositionDetail or the last FILLED deal
+    double foundClosePrice = 0.0;
+    double foundProfit = 0.0;
+    bool foundClose = false;
+
+    for (int i = dealCount - 1; i >= 0; i--) {
+        const char* deal = Protocol::GetArrayElement(arr, i);
+        if (!deal || !*deal) continue;
+
+        int execType = Protocol::ExtractInt(deal, "executionType");
+        // FILLED=3 or PARTIAL_FILL=11
+        if (execType != 3 && execType != 11) continue;
+
+        // Check for closePositionDetail — confirms this is the closing deal
+        const char* cpdStart = strstr(deal, "\"closePositionDetail\"");
+        if (cpdStart) {
+            const char* cpdObj = strchr(cpdStart, '{');
+            if (cpdObj) {
+                int md = Protocol::ExtractInt(cpdObj, "moneyDigits");
+                double scale = (md > 0) ? pow(10.0, (double)md) : pow(10.0, (double)G.moneyDigits);
+
+                long long grossRaw = Protocol::ExtractInt64(cpdObj, "grossProfit");
+                long long swapRaw = Protocol::ExtractInt64(cpdObj, "swap");
+                long long commRaw = Protocol::ExtractInt64(cpdObj, "commission");
+
+                foundProfit = ((double)grossRaw + (double)swapRaw + (double)commRaw) / scale;
+                foundClosePrice = Protocol::ExtractDouble(deal, "executionPrice");
+                foundClose = true;
+
+                Log::Info("TRADE", "QueryClosedPosition: found close deal price=%.5f NET=%.2f [server PnL]",
+                          foundClosePrice, foundProfit);
+                break;
+            }
+        }
+
+        // Fallback: use executionPrice from last FILLED deal
+        if (!foundClose) {
+            foundClosePrice = Protocol::ExtractDouble(deal, "executionPrice");
+            foundClose = true;
+        }
+    }
+
+    if (!foundClose) {
+        Log::Warn("TRADE", "QueryClosedPosition: no closing deal found for posId=%lld", positionId);
+        return false;
+    }
+
+    if (closePrice) *closePrice = foundClosePrice;
+    if (profit) *profit = foundProfit;
+    return true;
+}
+
+// ============================================================
+// RequestReconcile / HandleReconcileRes
+// ============================================================
+
+bool RequestReconcile() {
+    char payload[128];
+    sprintf_s(payload, "\"ctidTraderAccountId\":%lld", G.accountId);
+
+    const char* msg = Protocol::BuildMessage(Utils::NextMsgId(),
+                                             PayloadType::ReconcileReq, payload);
+
+    Log::Info("TRADE", "Requesting position reconciliation");
+
+    if (!WebSocket::Send(msg)) {
+        Log::Error("TRADE", "ReconcileReq send failed");
+        return false;
+    }
+
+    // Wait for response synchronously (called during login before NetworkThread)
+    char response[65536] = {0};
+    ULONGLONG start = Utils::NowMs();
+    while (Utils::NowMs() - start < (ULONGLONG)G.waitTime) {
+        int n = WebSocket::Receive(response, sizeof(response));
+        if (n > 0) {
+            int pt = Protocol::ExtractPayloadType(response);
+            if (pt == ToInt(PayloadType::ReconcileRes)) {
+                HandleReconcileRes(response);
+                return true;
+            }
+            if (pt == ToInt(PayloadType::ErrorRes)) {
+                const char* desc = Protocol::ExtractString(response, "description");
+                if (desc && strstr(desc, "subscribe twice")) {
+                    Log::Warn("TRADE", "ReconcileReq: already subscribed (non-fatal)");
+                    return true;  // Execution subscription already active from AccountAuth
+                }
+                Log::Error("TRADE", "ReconcileReq error: %s", desc ? desc : "unknown");
+                return false;
+            }
+            // Other messages during reconcile: SpotEvent, MarginChanged, etc. - ignore
+        }
+        Sleep(10);
+    }
+
+    Log::Warn("TRADE", "ReconcileReq timeout");
+    return false;
+}
+
+// Extract the per-instance tag from a position/order label.
+// Format "z_{id}__{tag}" or "z_{id}__{tag}_{orderText}". The "__" marker
+// uniquely identifies the tag; legacy labels ("z_{id}" / "z_{id}_{text}")
+// have no "__" and return empty (= unknown owner, adopt for back-compat).
+static std::string ExtractLabelTag(const char* label) {
+    if (!label) return "";
+    const char* dd = strstr(label, "__");
+    if (!dd) return "";
+    const char* p = dd + 2;
+    const char* e = p;
+    while (*e && *e != '_') e++;
+    return std::string(p, (size_t)(e - p));
+}
+
+// True when a reconciled label belongs to a DIFFERENT instance sharing this
+// account (its tag is set and differs from ours). Such positions must not be
+// adopted, or this instance could close a sibling strategy's trade.
+static bool LabelBelongsToOtherInstance(const char* label) {
+    if (G.instanceTag.empty()) return false;          // we don't tag -> adopt all (legacy)
+    std::string t = ExtractLabelTag(label);
+    return !t.empty() && t != G.instanceTag;
+}
+
+void HandleReconcileRes(const char* buffer) {
+    // Parse position array from reconcile response
+    const char* arr = Protocol::ExtractArray(buffer, "position");
+    if (!arr || *arr == '\0' || (*arr == '[' && *(arr + 1) == ']')) {
+        Log::Info("TRADE", "Reconcile: no open positions");
+        return;
+    }
+
+    int count = Protocol::CountArrayElements(arr);
+    Log::Info("TRADE", "Reconcile: %d open positions", count);
+
+    CsLock lock(G.csTrades);
+
+    for (int i = 0; i < count; i++) {
+        const char* elem = Protocol::GetArrayElement(arr, i);
+        if (!elem || !*elem) continue;
+
+        long long posId = Protocol::ExtractInt64(elem, "positionId");
+        long long symId = Protocol::ExtractInt64(elem, "symbolId");
+        int side = Protocol::ExtractInt(elem, "tradeSide");
+        long long vol = Protocol::ExtractInt64(elem, "volume");
+        // price is a JSON double (actual price, not scaled)
+        double price = Protocol::ExtractDouble(elem, "price");
+
+        double scale = pow(10.0, (double)G.moneyDigits);
+        double commission = (double)Protocol::ExtractInt64(elem, "commission") / scale;
+        double swap = (double)Protocol::ExtractInt64(elem, "swap") / scale;
+
+        // Recover zorroId from label "z_N" (set by BuyOrder)
+        // This allows Zorro to find the same trade after plugin restart
+        int zid = 0;
+        const char* label = Protocol::ExtractString(elem, "label");
+
+        // Shared-account safety: skip positions tagged by another instance
+        if (LabelBelongsToOtherInstance(label)) {
+            Log::Diag(1, "TRADE Reconcile: skip posId=%lld (label '%s' owned by another instance, mine='%s')",
+                      posId, label ? label : "", G.instanceTag.c_str());
+            continue;
+        }
+
+        if (label && label[0] == 'z' && label[1] == '_') {
+            zid = atoi(label + 2);
+        }
+        if (zid <= 0) {
+            // No label or invalid — check posIdToZorroId, then allocate new
+            auto posIt = G.posIdToZorroId.find(posId);
+            if (posIt != G.posIdToZorroId.end()) {
+                zid = posIt->second;
+            } else {
+                zid = G.nextZorroId++;
+            }
+        }
+
+        // Get symbol name
+        const char* symName = Symbols::GetNameById(symId);
+        std::string symStr = symName ? symName : "";
+
+        // Check if this position was opened by Zorro (has "z_N" label)
+        bool hasZorroLabel = (label && label[0] == 'z' && label[1] == '_' && zid > 0);
+
+        TradeInfo ti;
+        ti.zorroId = zid;
+        ti.positionId = posId;
+        ti.symbol = symStr;
+        ti.volume = vol;
+        ti.tradeSide = side;
+        ti.openPrice = price;
+        ti.commission = commission;
+        ti.swap = swap;
+        ti.open = true;
+        ti.reconciled = !hasZorroLabel;  // NOT reconciled if Zorro opened it (has z_N label)
+
+        // usedMargin from server (moneyDigits scaled integer)
+        if (Protocol::HasField(elem, "usedMargin")) {
+            ti.usedMargin = (double)Protocol::ExtractInt64(elem, "usedMargin") / scale;
+        }
+
+        // SL/TP if present (JSON doubles)
+        if (Protocol::HasField(elem, "stopLoss")) {
+            ti.stopLoss = Protocol::ExtractDouble(elem, "stopLoss");
+        }
+        if (Protocol::HasField(elem, "takeProfit")) {
+            ti.takeProfit = Protocol::ExtractDouble(elem, "takeProfit");
+        }
+
+        G.trades[zid] = ti;
+        G.posIdToZorroId[posId] = zid;
+
+        Log::Diag(1, "TRADE Reconciled: zorroId=%d posId=%lld %s %s vol=%lld price=%.5f",
+                  zid, posId, (side == 1) ? "BUY" : "SELL", symStr.c_str(), vol, price);
+
+        // Ensure nextZorroId is above all recovered IDs
+        if (zid >= G.nextZorroId) G.nextZorroId = zid + 1;
+    }
+
+    // Also parse pending orders from "order" array
+    const char* orderArr = Protocol::ExtractArray(buffer, "order");
+    if (orderArr && *orderArr != '\0' && !(*orderArr == '[' && *(orderArr + 1) == ']')) {
+        int orderCount = Protocol::CountArrayElements(orderArr);
+        Log::Info("TRADE", "Reconcile: %d pending orders", orderCount);
+
+        for (int i = 0; i < orderCount; i++) {
+            const char* elem = Protocol::GetArrayElement(orderArr, i);
+            if (!elem || !*elem) continue;
+
+            long long ordId = Protocol::ExtractInt64(elem, "orderId");
+            long long symId = Protocol::ExtractInt64(elem, "symbolId");
+            int side = Protocol::ExtractInt(elem, "tradeSide");
+            long long vol = Protocol::ExtractInt64(elem, "volume");
+            int ordType = Protocol::ExtractInt(elem, "orderType");
+
+            // Prices are JSON doubles
+            double limitPrice = 0.0;
+            double stopPrice = 0.0;
+            if (Protocol::HasField(elem, "limitPrice"))
+                limitPrice = Protocol::ExtractDouble(elem, "limitPrice");
+            if (Protocol::HasField(elem, "stopPrice"))
+                stopPrice = Protocol::ExtractDouble(elem, "stopPrice");
+
+            // Recover zorroId from label "z_N"
+            int zid = 0;
+            const char* ordLabel = Protocol::ExtractString(elem, "label");
+
+            // Shared-account safety: skip pending orders owned by another instance
+            if (LabelBelongsToOtherInstance(ordLabel)) {
+                Log::Diag(1, "TRADE Reconcile: skip orderId=%lld (label '%s' owned by another instance, mine='%s')",
+                          ordId, ordLabel ? ordLabel : "", G.instanceTag.c_str());
+                continue;
+            }
+
+            if (ordLabel && ordLabel[0] == 'z' && ordLabel[1] == '_') {
+                zid = atoi(ordLabel + 2);
+            }
+            if (zid <= 0) {
+                zid = G.nextZorroId++;
+            }
+
+            const char* symName = Symbols::GetNameById(symId);
+            bool hasZorroLabel = (ordLabel && ordLabel[0] == 'z' && ordLabel[1] == '_' && zid > 0);
+
+            TradeInfo ti;
+            ti.zorroId = zid;
+            ti.orderId = ordId;
+            ti.symbol = symName ? symName : "";
+            ti.volume = vol;
+            ti.tradeSide = side;
+            ti.openPrice = (ordType == 2) ? limitPrice : stopPrice;
+            ti.open = true;
+            ti.reconciled = !hasZorroLabel;
+
+            G.trades[zid] = ti;
+
+            // Ensure nextZorroId is above all recovered IDs
+            if (zid >= G.nextZorroId) G.nextZorroId = zid + 1;
+
+            Log::Diag(1, "TRADE Reconciled pending: zorroId=%d orderId=%lld %s vol=%lld type=%d",
+                      zid, ordId, (side == 1) ? "BUY" : "SELL", vol, ordType);
+        }
+    }
+}
+
+// ============================================================
+// CancelOrder - cancel a pending order
+// ============================================================
+
+bool CancelOrder(int tradeId) {
+    TradeInfo ti;
+    {
+        CsLock lock(G.csTrades);
+        auto it = G.trades.find(tradeId);
+        if (it == G.trades.end()) return false;
+        ti = it->second;
+    }
+
+    if (ti.orderId <= 0) {
+        Log::Error("TRADE", "CancelOrder: tradeId=%d has no orderId", tradeId);
+        return false;
+    }
+
+    char payload[256];
+    sprintf_s(payload,
+        "\"ctidTraderAccountId\":%lld,"
+        "\"orderId\":%lld",
+        G.accountId, ti.orderId);
+
+    const char* msgId = Utils::NextMsgId();
+    const char* msg = Protocol::BuildMessage(msgId, PayloadType::CancelOrderReq, payload);
+
+    Log::Info("TRADE", "CancelOrder: tradeId=%d orderId=%lld", tradeId, ti.orderId);
+
+    // Set waiting flag and send
+    {
+        CsLock lock(G.csTrading);
+        ResetTradingBuffer();
+        G.waitingForTrading = true;
+    }
+
+    if (!WebSocket::Send(msg)) {
+        Log::Error("TRADE", "CancelOrder send failed");
+        G.waitingForTrading = false;
+        return false;
+    }
+
+    bool gotResponse = WaitForTradingResponse(G.waitTime);
+    G.waitingForTrading = false;
+
+    if (!gotResponse) {
+        Log::Error("TRADE", "CancelOrder timeout");
+        return false;
+    }
+
+    CsLock tlock(G.csTrading);
+    int pt = G.tradingResponsePt;
+
+    if (pt == ToInt(PayloadType::ExecutionEvent)) {
+        int execType = G.tradingResponseExecType;
+        if (execType == 5) {  // OrderCancelled
+            CsLock lock(G.csTrades);
+            auto it = G.trades.find(tradeId);
+            if (it != G.trades.end()) {
+                it->second.open = false;
+            }
+            Log::Info("TRADE", "Order cancelled: tradeId=%d", tradeId);
+            return true;
+        }
+    }
+
+    if (pt == ToInt(PayloadType::ErrorRes) || pt == ToInt(PayloadType::OrderErrorEvent)) {
+        const char* desc = Protocol::ExtractString(G.tradingResponseBuf, "description");
+        Log::Error("TRADE", "CancelOrder error: %s", desc);
+    }
+
+    return false;
+}
+
+// ============================================================
+// AmendPositionSltp - modify SL/TP on an existing position
+// ============================================================
+
+bool AmendPositionSltp(int tradeId, double stopLoss, double takeProfit) {
+    if (!G.loggedIn) return false;
+
+    int lookupId = abs(tradeId);
+
+    // Lookup trade
+    TradeInfo ti;
+    {
+        CsLock lock(G.csTrades);
+        auto it = G.trades.find(lookupId);
+
+        // Check alias cache
+        if (it == G.trades.end()) {
+            auto aliasIt = G.tradeIdAlias.find(lookupId);
+            if (aliasIt != G.tradeIdAlias.end()) {
+                it = G.trades.find(aliasIt->second);
+                if (it != G.trades.end()) lookupId = aliasIt->second;
+            }
+        }
+
+        if (it == G.trades.end()) {
+            Log::Error("TRADE", "AmendSLTP: tradeId=%d not found", tradeId);
+            return false;
+        }
+        ti = it->second;
+    }
+
+    if (!ti.open || ti.positionId <= 0) {
+        Log::Error("TRADE", "AmendSLTP: tradeId=%d not open or no positionId", tradeId);
+        return false;
+    }
+
+    // Build AmendPositionSltpReq payload
+    char payload[512];
+    int off = sprintf_s(payload,
+        "\"ctidTraderAccountId\":%lld,"
+        "\"positionId\":%lld",
+        G.accountId, ti.positionId);
+
+    // SL: 0 = omit field (removes SL), >0 = set SL price
+    if (stopLoss > 0.0) {
+        off += sprintf_s(payload + off, sizeof(payload) - off,
+            ",\"stopLoss\":%.0f", stopLoss * PRICE_SCALE);
+    }
+
+    // TP: 0 = omit field (removes TP), >0 = set TP price
+    if (takeProfit > 0.0) {
+        off += sprintf_s(payload + off, sizeof(payload) - off,
+            ",\"takeProfit\":%.0f", takeProfit * PRICE_SCALE);
+    }
+
+    const char* msgId = Utils::NextMsgId();
+    const char* msg = Protocol::BuildMessage(msgId, PayloadType::AmendPositionSltpReq, payload);
+
+    Log::Info("TRADE", "AmendSLTP: tradeId=%d posId=%lld SL=%.5f TP=%.5f",
+              lookupId, ti.positionId, stopLoss, takeProfit);
+
+    // Set waiting flag and send
+    {
+        CsLock lock(G.csTrading);
+        ResetTradingBuffer();
+        G.waitingForTrading = true;
+    }
+
+    if (!WebSocket::Send(msg)) {
+        Log::Error("TRADE", "AmendSLTP send failed");
+        G.waitingForTrading = false;
+        return false;
+    }
+
+    // Wait for ExecutionEvent (execType=2 ACCEPTED) or error
+    for (int eventCount = 0; eventCount < 5; eventCount++) {
+        bool gotResponse = WaitForTradingResponse(G.waitTime);
+
+        if (!gotResponse) {
+            G.waitingForTrading = false;
+            Log::Error("TRADE", "AmendSLTP timeout (%dms)", G.waitTime);
+            return false;
+        }
+
+        CsLock tlock(G.csTrading);
+        int pt = G.tradingResponsePt;
+
+        if (pt == ToInt(PayloadType::ErrorRes)) {
+            G.waitingForTrading = false;
+            const char* desc = Protocol::ExtractString(G.tradingResponseBuf, "description");
+            Log::Error("TRADE", "AmendSLTP error: %s", desc);
+            return false;
+        }
+
+        if (pt == ToInt(PayloadType::OrderErrorEvent)) {
+            G.waitingForTrading = false;
+            const char* desc = Protocol::ExtractString(G.tradingResponseBuf, "description");
+            Log::Error("TRADE", "AmendSLTP order error: %s", desc);
+            return false;
+        }
+
+        if (pt == ToInt(PayloadType::ExecutionEvent)) {
+            int execType = G.tradingResponseExecType;
+
+            if (execType == 2) {
+                // ACCEPTED — SL/TP modification successful
+                G.waitingForTrading = false;
+
+                // Update trade state
+                {
+                    CsLock lock(G.csTrades);
+                    auto it = G.trades.find(lookupId);
+                    if (it != G.trades.end()) {
+                        it->second.stopLoss = stopLoss;
+                        it->second.takeProfit = takeProfit;
+                    }
+                }
+
+                Log::Info("TRADE", "AmendSLTP success: tradeId=%d SL=%.5f TP=%.5f",
+                          lookupId, stopLoss, takeProfit);
+                return true;
+            }
+
+            // Other execType — skip and keep waiting
+            Log::Diag(1, "TRADE AmendSLTP event execType=%d, waiting...", execType);
+            ResetTradingBuffer();
+            continue;
+        }
+
+        // Unknown pt — skip
+        Log::Diag(1, "TRADE AmendSLTP: skipping unexpected pt=%d", pt);
+        ResetTradingBuffer();
+        continue;
+    }
+
+    G.waitingForTrading = false;
+    Log::Error("TRADE", "AmendSLTP: too many events without ACCEPTED");
+    return false;
+}
+
+// ============================================================
+// RefreshUnrealizedPnL - get server-side gross/net PnL for all open positions
+// Uses GetPosUnrealizedPnLReq (2187) / GetPosUnrealizedPnLRes (2188)
+// Called from MAIN THREAD (GetTradeStatus), response forwarded by NetworkThread
+// ============================================================
+
+bool RefreshUnrealizedPnL() {
+    if (!G.loggedIn || !WebSocket::IsConnected()) return false;
+
+    // Check if there are any open trades worth querying
+    {
+        CsLock lock(G.csTrades);
+        bool hasOpen = false;
+        for (auto& kv : G.trades) {
+            if (kv.second.open && kv.second.positionId > 0) { hasOpen = true; break; }
+        }
+        if (!hasOpen) return false;
+    }
+
+    // Build and send 2187 request from main thread
+    char payload[128];
+    sprintf_s(payload, "\"ctidTraderAccountId\":%lld", G.accountId);
+    const char* msg = Protocol::BuildMessage(Utils::NextMsgId(),
+        PayloadType::GetPositionUnrealizedPnLReq, payload);
+
+    G.pnlResponseReady = false;
+    G.waitingForPnL = true;
+
+    if (!WebSocket::Send(msg)) {
+        G.waitingForPnL = false;
+        Log::Warn("PNL", "RefreshUnrealizedPnL send failed");
+        return false;
+    }
+
+    // Spin-wait for NetworkThread to deliver 2188 response (max 2s)
+    ULONGLONG start = GetTickCount64();
+    while (GetTickCount64() - start < 2000) {
+        if (G.pnlResponseReady) {
+            G.waitingForPnL = false;
+            Log::Diag(1, "PNL refresh OK (%llums)", GetTickCount64() - start);
+            return true;
+        }
+        Sleep(10);
+        if (BrokerProgress) BrokerProgress(1);
+    }
+
+    G.waitingForPnL = false;
+    Log::Warn("PNL", "RefreshUnrealizedPnL timeout (2s)");
+    return false;
+}
+
+// Called from NetworkThread when GetPosUnrealizedPnLRes (2188) arrives
+// CRITICAL: NO LOCKS during parsing. Only brief lock for cache swap.
+void HandleUnrealizedPnLRes(const char* buffer) {
+    // Step 1: Parse ENTIRELY without locks (no csLog, no csTrades)
+    int md = Protocol::ExtractInt(buffer, "moneyDigits");
+    double scale = (md > 0) ? pow(10.0, (double)md) : pow(10.0, (double)G.moneyDigits);
+
+    // Parse array into LOCAL temp storage (no lock needed)
+    struct TempPnL { long long posId; double gross; double net; };
+    TempPnL temp[64];  // max 64 positions
+    int tempCount = 0;
+
+    const char* arr = Protocol::ExtractArray(buffer, "positionUnrealizedPnL");
+    if (arr && *arr != '\0') {
+        int count = Protocol::CountArrayElements(arr);
+        if (count > 64) count = 64;
+
+        for (int i = 0; i < count; i++) {
+            const char* elem = Protocol::GetArrayElement(arr, i);
+            if (!elem) continue;
+
+            long long posId = Protocol::ExtractInt64(elem, "positionId");
+            long long grossRaw = Protocol::ExtractInt64(elem, "grossUnrealizedPnL");
+            long long netRaw = Protocol::ExtractInt64(elem, "netUnrealizedPnL");
+
+            temp[tempCount].posId = posId;
+            temp[tempCount].gross = (double)grossRaw / scale;
+            temp[tempCount].net = (double)netRaw / scale;
+            tempCount++;
+        }
+    }
+
+    // Step 2: Brief lock to swap cache (microseconds, no I/O inside lock)
+    {
+        CsLock lock(G.csTrades);
+        G.pnlCache.clear();
+        for (int i = 0; i < tempCount; i++) {
+            State::PnLEntry entry;
+            entry.gross = temp[i].gross;
+            entry.net = temp[i].net;
+            G.pnlCache[temp[i].posId] = entry;
+        }
+    }
+    G.pnlCacheTimeMs = GetTickCount64();
+
+    // Step 3: Log AFTER all locks released
+    Log::Diag(1, "PnL updated: %d positions (md=%d scale=%.0f)", tempCount, md, scale);
+}
+
+} // namespace Trading
