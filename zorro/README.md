@@ -4,15 +4,16 @@
 |---|---|
 | `server/` | `JevServer.py` (helyi Jev szerver, port 5003), `start_jev.bat`, `test_jev.bat`, `prefetch_jev.bat`, `jev_key.example.txt` |
 | `jevtrader/` | `JevTrader.c` — Zorro stratégia, a Jev dönt (H1, EUR/USD, GBP/USD, XAU/USD) |
-| `deep/` | `JevTradeDeep.c` — ugyanez + Depth of Market (kell hozzá a plugin `jevdepth` modulja) |
+| `deep/` | `JevTradeDeep.c` — ugyanez + Depth of Market (kell hozzá a `cTraderJev.dll`) |
 | `tools/` | `calibrate_jev.py` — a Jev válaszainak kiértékelése a backtest adatokon |
 | `lotto/` | `lotto_jev.py`, `lotto_popularity.py` — hatoslottó kísérletek |
 | `archive/` | feltöltött anyagok (pl. `grok-workspace.zip`), a működéshez nem kell |
 
-A cTrader plugin kapcsolódó részei a **Boddav/ctrader-zorro-plugin** repóban vannak,
-`source/repos/zorro-plugin-windows-32-4/` alatt, külön mappákban:
+A Jev-es cTrader plugin **külön plugin**: `cTraderJev.dll`, a **Boddav/ctrader-zorro-plugin** repó
+`source/repos/zorro-plugin-jev/` mappájában (a v4.12 `cTrader.dll` érintetlen). Modulok:
 `jevgate/` (Jev kapuőr minden új kötés előtt, `Plugin\JevGate\JevGate.ini`) és
-`jevdepth/` (Depth of Market a `GET_BOOK` paranccsal).
+`jevdepth/` (Depth of Market a `GET_BOOK` paranccsal). Az `accounts.csv` `Plugin` oszlopában
+választható, melyik Zorro-ablak melyik DLL-t használja.
 
 ## Telepítés / frissítés a Zorro gépen
 

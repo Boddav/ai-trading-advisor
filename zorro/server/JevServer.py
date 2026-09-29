@@ -12,8 +12,8 @@
 #   POST /decide   {"asset","tf","digits","pos","entry","bars":[[o,h,l,c],...]}
 #                  -> {"action","p_long","p_short","p_intent","reason"}
 #   POST /gate     {"asset","side":"long|short","strategy","digits","bars":[[o,h,l,c],...]}
-#                  -> {"p": esély, "reason"}   (a cTrader plugin JevGate modulja hívja, lásd
-#                  ctrader-zorro-plugin: jevgate/; ott dől el a MinProb alapján, hogy mehet-e)
+#                  -> {"p": esély, "reason"}   (a cTraderJev plugin JevGate modulja hívja, lásd
+#                  ctrader-zorro-plugin: source/repos/zorro-plugin-jev/jevgate/; ott dől el a MinProb alapján, hogy mehet-e)
 #   GET  /health
 #
 # API kulcs: jev_key.txt a szerver mellett, vagy TYPESAFE_API_KEY környezeti változó.

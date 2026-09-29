@@ -3,8 +3,8 @@
 //
 // Ugyanaz, mint a JevTrader.c, de élő kereskedésben (Trade) a cTrader DoM összesítését is
 // elküldi: legjobb bid/ask, spread, a legjobb 5 szint mennyisége mindkét oldalon, egyensúly.
-// Ehhez a cTrader plugin jevdepth modulja kell (GET_BOOK), lásd ctrader-zorro-plugin:
-// source/repos/zorro-plugin-windows-32-4/jevdepth/.
+// Ehhez a cTraderJev.dll plugin kell (jevdepth modul, GET_BOOK), lásd ctrader-zorro-plugin:
+// source/repos/zorro-plugin-jev/. Az [Account] sorban a Plugin oszlop: cTraderJev.dll
 // Backtestben NINCS DoM (a History fájlok nem tárolják), ott úgy fut, mint a JevTrader.
 // Az első órában még üres lehet a könyv (a plugin ekkor iratkozik fel).
 //
