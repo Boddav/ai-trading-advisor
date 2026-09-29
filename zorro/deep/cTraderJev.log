@@ -1,0 +1,909 @@
+[DEBUG] direct write test from BrokerOpen v4.12.0-jev1
+[2026-09-29 21:11:35] BROKER: BrokerOpen - cTraderJev v4.12.0-jev1
+[2026-09-29 21:11:35] WS: Disconnected
+[DEBUG] direct write test from BrokerOpen v4.12.0-jev1
+[2026-09-29 21:13:17] BROKER: BrokerOpen - cTraderJev v4.12.0-jev1
+[2026-09-29 21:13:17] BROKER: BrokerLogin FIRST: user= type=Real
+[2026-09-29 21:13:17] STATE: Session state reset
+[2026-09-29 21:13:17] AUTH: Instance tag: 'JevTrader' (shared-account label namespace)
+[2026-09-29 21:13:17] AUTH: Environment set to LIVE (locked)
+[2026-09-29 21:13:17] AUTH: Reading CSV: C:\Users\Administrator\Desktop\z12\Plugin\accounts.csv
+[2026-09-29 21:13:17] AUTH: CSV has 13 columns (user=)
+[2026-09-29 21:13:17] AUTH: CSV loaded: clientId=USD... accountId=9007309 env=LIVE redirectUri=http://127.0.0.1:53123/callback
+[2026-09-29 21:13:17] AUTH: Loaded client_id from token file (CSV had none)
+[2026-09-29 21:13:17] AUTH: Loaded client_secret from token file (CSV had none)
+[2026-09-29 21:13:17] AUTH: Loaded token from oauth_token.json (token=J_eA8RoWfUXkVAzcP1yy...)
+[2026-09-29 21:13:17] AUTH: Proactively refreshing access token...
+[2026-09-29 21:13:17] AUTH: Loaded token from oauth_token.json (token=J_eA8RoWfUXkVAzcP1yy...)
+[2026-09-29 21:13:17] AUTH: Refreshing access token...
+[2026-09-29 21:13:17] AUTH: Token saved to oauth_token.json
+[2026-09-29 21:13:17] AUTH: Token refreshed (new token=xbetohrc5bYHTKbGJPcp...)
+[2026-09-29 21:13:17] AUTH: Token refreshed proactively (new token=xbetohrc5bYHTKbGJPcp...)
+[2026-09-29 21:13:17] AUTH: Credentials ready: clientId=22088_18UMbjtDBgRCBl... accountId=9007309 token=xbetohrc5bYHTKbGJPcp...
+[2026-09-29 21:13:17] WS: Connecting to live.ctraderapi.com:5036
+[2026-09-29 21:13:18] WS: Connected to live.ctraderapi.com:5036
+[2026-09-29 21:13:18] AUTH: Application authenticated
+[2026-09-29 21:13:18] AUTH: AccountAuth rejected: Unable to find cTID trader account with id=9007309
+[2026-09-29 21:13:18] AUTH: Account auth failed (accountId=9007309 may be invalid)
+[2026-09-29 21:13:18] WS: Disconnected
+[2026-09-29 21:13:18] AUTH: Loaded token from oauth_token.json (token=xbetohrc5bYHTKbGJPcp...)
+[2026-09-29 21:13:18] AUTH: Refreshing access token...
+[2026-09-29 21:13:18] AUTH: Token saved to oauth_token.json
+[2026-09-29 21:13:18] AUTH: Token refreshed (new token=ZNqS598JoWj-_O6F2NSx...)
+[2026-09-29 21:13:18] WS: Connecting to live.ctraderapi.com:5036
+[2026-09-29 21:13:18] WS: Connected to live.ctraderapi.com:5036
+[2026-09-29 21:13:18] AUTH: Application authenticated
+[2026-09-29 21:13:18] AUTH: Re-discovering accounts with fresh token...
+[2026-09-29 21:13:18] AUTH: Found 2 accounts for env LIVE
+[2026-09-29 21:13:18] AUTH: Re-discovered accountId: 23706452 (from 2 candidates)
+[2026-09-29 21:13:18] AUTH: Account 23706452 authenticated
+[2026-09-29 21:13:18] AUTH: Login successful after retry (env=LIVE, account=23706452)
+[2026-09-29 21:13:18] SYM: Received 308 symbols
+[2026-09-29 21:13:18] SYM: Stored 193 enabled symbols
+[2026-09-29 21:13:18] SYM: Updated details for 50 symbols
+[2026-09-29 21:13:18] SYM: Updated details for 50 symbols
+[2026-09-29 21:13:18] SYM: Updated details for 50 symbols
+[2026-09-29 21:13:18] SYM: Updated details for 43 symbols
+[2026-09-29 21:13:18] ACC: depositAssetId=16
+[2026-09-29 21:13:18] ACC: Equity initialized from balance: 3.66
+[2026-09-29 21:13:18] ACC: Balance=3.66 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:13:18] TRADE: Requesting position reconciliation
+[2026-09-29 21:13:18] TRADE: Reconcile: 1 open positions
+[2026-09-29 21:13:18] BROKER: Login complete. 193 symbols loaded.
+[2026-09-29 21:13:18] NET: NetworkThread started
+[2026-09-29 21:13:19] ASSET: M7 margin loaded for EUR/USD: marginPerLot=1.1300 (vol=100000)
+[2026-09-29 21:13:19] ASSET: EUR/USD: bid=1.13397 ask=1.13397 LotAmt=1000.0 PipCost=0.100000 MCost=1.1300 Roll=-0.8300/0.1500 Comm=0.0000
+[2026-09-29 21:13:19] ASSET: M7 margin loaded for GBP/USD: marginPerLot=1.3200 (vol=100000)
+[2026-09-29 21:13:19] ASSET: GBP/USD: bid=1.32268 ask=1.32269 LotAmt=1000.0 PipCost=0.100000 MCost=1.3200 Roll=-0.4800/-0.3200 Comm=0.0000
+[2026-09-29 21:13:20] ASSET: M7 margin loaded for XAU/USD: marginPerLot=4.1700 (vol=100)
+[2026-09-29 21:13:20] ASSET: XAU/USD: bid=4168.70000 ask=4168.75000 LotAmt=1.0 PipCost=0.010000 MCost=4.1700 Roll=-0.6172/0.4233 Comm=0.0000
+[2026-09-29 21:13:20] ASSET: EUR/USD: bid=1.13398 ask=1.13398 LotAmt=1000.0 PipCost=0.100000 MCost=1.1300 Roll=-0.8300/0.1500 Comm=-0.6804
+[2026-09-29 21:13:21] ASSET: GBP/USD: bid=1.32267 ask=1.32269 LotAmt=1000.0 PipCost=0.100000 MCost=1.3200 Roll=-0.4800/-0.3200 Comm=-0.7936
+[2026-09-29 21:13:21] ASSET: XAU/USD: bid=4168.73000 ask=4168.78000 LotAmt=1.0 PipCost=0.010000 MCost=4.1700 Roll=-0.6172/0.4233 Comm=-2501.2680
+[2026-09-29 21:13:36] BROKER: BrokerLogin: logout requested
+[2026-09-29 21:13:36] NET: NetworkThread exiting (G.running=0)
+[2026-09-29 21:13:36] WS: Disconnected
+[2026-09-29 21:14:53] BROKER: BrokerLogin FIRST: user= type=Real
+[2026-09-29 21:14:53] STATE: Session state reset
+[2026-09-29 21:14:53] AUTH: Instance tag: 'JevTrader' (shared-account label namespace)
+[2026-09-29 21:14:53] AUTH: Environment set to LIVE (locked)
+[2026-09-29 21:14:53] AUTH: Reading CSV: C:\Users\Administrator\Desktop\z12\Plugin\accounts.csv
+[2026-09-29 21:14:53] AUTH: CSV has 13 columns (user=)
+[2026-09-29 21:14:53] AUTH: CSV loaded: clientId=USD... accountId=9007309 env=LIVE redirectUri=http://127.0.0.1:53123/callback
+[2026-09-29 21:14:53] AUTH: Loaded client_id from token file (CSV had none)
+[2026-09-29 21:14:53] AUTH: Loaded client_secret from token file (CSV had none)
+[2026-09-29 21:14:53] AUTH: Loaded token from oauth_token.json (token=ZNqS598JoWj-_O6F2NSx...)
+[2026-09-29 21:14:53] AUTH: Proactively refreshing access token...
+[2026-09-29 21:14:53] AUTH: Loaded token from oauth_token.json (token=ZNqS598JoWj-_O6F2NSx...)
+[2026-09-29 21:14:53] AUTH: Refreshing access token...
+[2026-09-29 21:14:53] AUTH: Token saved to oauth_token.json
+[2026-09-29 21:14:53] AUTH: Token refreshed (new token=wb8tK7Q-osqxfGUq_bs3...)
+[2026-09-29 21:14:53] AUTH: Token refreshed proactively (new token=wb8tK7Q-osqxfGUq_bs3...)
+[2026-09-29 21:14:53] AUTH: Credentials ready: clientId=22088_18UMbjtDBgRCBl... accountId=9007309 token=wb8tK7Q-osqxfGUq_bs3...
+[2026-09-29 21:14:53] WS: Connecting to live.ctraderapi.com:5036
+[2026-09-29 21:14:53] WS: Connected to live.ctraderapi.com:5036
+[2026-09-29 21:14:53] AUTH: Application authenticated
+[2026-09-29 21:14:54] AUTH: AccountAuth rejected: Unable to find cTID trader account with id=9007309
+[2026-09-29 21:14:54] AUTH: Account auth failed (accountId=9007309 may be invalid)
+[2026-09-29 21:14:54] WS: Disconnected
+[2026-09-29 21:14:54] AUTH: Loaded token from oauth_token.json (token=wb8tK7Q-osqxfGUq_bs3...)
+[2026-09-29 21:14:54] AUTH: Refreshing access token...
+[2026-09-29 21:14:54] AUTH: Token saved to oauth_token.json
+[2026-09-29 21:14:54] AUTH: Token refreshed (new token=cbwCwoLfcHZuC9z2OhOq...)
+[2026-09-29 21:14:54] WS: Connecting to live.ctraderapi.com:5036
+[2026-09-29 21:14:54] WS: Connected to live.ctraderapi.com:5036
+[2026-09-29 21:14:54] AUTH: Application authenticated
+[2026-09-29 21:14:54] AUTH: Re-discovering accounts with fresh token...
+[2026-09-29 21:14:54] AUTH: Found 2 accounts for env LIVE
+[2026-09-29 21:14:54] AUTH: Re-discovered accountId: 23706452 (from 2 candidates)
+[2026-09-29 21:14:54] AUTH: Account 23706452 authenticated
+[2026-09-29 21:14:54] AUTH: Login successful after retry (env=LIVE, account=23706452)
+[2026-09-29 21:14:54] SYM: Received 308 symbols
+[2026-09-29 21:14:54] SYM: Stored 193 enabled symbols
+[2026-09-29 21:14:54] SYM: Updated details for 50 symbols
+[2026-09-29 21:14:54] SYM: Updated details for 50 symbols
+[2026-09-29 21:14:54] SYM: Updated details for 50 symbols
+[2026-09-29 21:14:54] SYM: Updated details for 43 symbols
+[2026-09-29 21:14:54] ACC: depositAssetId=16
+[2026-09-29 21:14:54] ACC: Equity initialized from balance: 3.66
+[2026-09-29 21:14:54] ACC: Balance=3.66 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:14:54] TRADE: Requesting position reconciliation
+[2026-09-29 21:14:54] TRADE: Reconcile: 1 open positions
+[2026-09-29 21:14:54] BROKER: Login complete. 193 symbols loaded.
+[2026-09-29 21:14:54] NET: NetworkThread started
+[2026-09-29 21:14:55] ASSET: M7 margin loaded for EUR/USD: marginPerLot=1.1300 (vol=100000)
+[2026-09-29 21:14:55] ASSET: EUR/USD: bid=1.13394 ask=1.13394 LotAmt=1000.0 PipCost=0.100000 MCost=1.1300 Roll=-0.8300/0.1500 Comm=0.0000
+[2026-09-29 21:14:55] ASSET: EUR/USD: bid=1.13393 ask=1.13394 LotAmt=1000.0 PipCost=0.100000 MCost=1.1300 Roll=-0.8300/0.1500 Comm=-0.6804
+[2026-09-29 21:14:55] ASSET: M7 margin loaded for GBP/USD: marginPerLot=1.3200 (vol=100000)
+[2026-09-29 21:14:55] ASSET: GBP/USD: bid=1.32258 ask=1.32260 LotAmt=1000.0 PipCost=0.100000 MCost=1.3200 Roll=-0.4800/-0.3200 Comm=-0.7936
+[2026-09-29 21:14:55] ASSET: M7 margin loaded for XAU/USD: marginPerLot=4.1700 (vol=100)
+[2026-09-29 21:14:55] ASSET: XAU/USD: bid=4168.63000 ask=4168.68000 LotAmt=1.0 PipCost=0.010000 MCost=4.1700 Roll=-0.6172/0.4233 Comm=-2501.2080
+[2026-09-29 21:15:03] BROKER: BrokerLogin: logout requested
+[2026-09-29 21:15:03] NET: NetworkThread exiting (G.running=0)
+[2026-09-29 21:15:03] WS: Disconnected
+[2026-09-29 21:17:25] BROKER: BrokerLogin FIRST: user= type=Real
+[2026-09-29 21:17:25] STATE: Session state reset
+[2026-09-29 21:17:25] AUTH: Instance tag: 'JevTradeDeep' (shared-account label namespace)
+[2026-09-29 21:17:25] AUTH: Environment set to LIVE (locked)
+[2026-09-29 21:17:25] AUTH: Reading CSV: C:\Users\Administrator\Desktop\z12\Plugin\accounts.csv
+[2026-09-29 21:17:25] AUTH: CSV has 13 columns (user=)
+[2026-09-29 21:17:25] AUTH: CSV loaded: clientId=USD... accountId=9007309 env=LIVE redirectUri=http://127.0.0.1:53123/callback
+[2026-09-29 21:17:25] AUTH: Loaded client_id from token file (CSV had none)
+[2026-09-29 21:17:25] AUTH: Loaded client_secret from token file (CSV had none)
+[2026-09-29 21:17:25] AUTH: Loaded token from oauth_token.json (token=cbwCwoLfcHZuC9z2OhOq...)
+[2026-09-29 21:17:25] AUTH: Proactively refreshing access token...
+[2026-09-29 21:17:25] AUTH: Loaded token from oauth_token.json (token=cbwCwoLfcHZuC9z2OhOq...)
+[2026-09-29 21:17:25] AUTH: Refreshing access token...
+[2026-09-29 21:17:26] AUTH: Token saved to oauth_token.json
+[2026-09-29 21:17:26] AUTH: Token refreshed (new token=zcd2suHRSrqnwtB0T4Di...)
+[2026-09-29 21:17:26] AUTH: Token refreshed proactively (new token=zcd2suHRSrqnwtB0T4Di...)
+[2026-09-29 21:17:26] AUTH: Credentials ready: clientId=22088_18UMbjtDBgRCBl... accountId=9007309 token=zcd2suHRSrqnwtB0T4Di...
+[2026-09-29 21:17:26] WS: Connecting to live.ctraderapi.com:5036
+[2026-09-29 21:17:26] WS: Connected to live.ctraderapi.com:5036
+[2026-09-29 21:17:26] AUTH: Application authenticated
+[2026-09-29 21:17:26] AUTH: AccountAuth rejected: Unable to find cTID trader account with id=9007309
+[2026-09-29 21:17:26] AUTH: Account auth failed (accountId=9007309 may be invalid)
+[2026-09-29 21:17:26] WS: Disconnected
+[2026-09-29 21:17:26] AUTH: Loaded token from oauth_token.json (token=zcd2suHRSrqnwtB0T4Di...)
+[2026-09-29 21:17:26] AUTH: Refreshing access token...
+[2026-09-29 21:17:26] AUTH: Token saved to oauth_token.json
+[2026-09-29 21:17:26] AUTH: Token refreshed (new token=mJg09AxAUku2_EGGfDL4...)
+[2026-09-29 21:17:26] WS: Connecting to live.ctraderapi.com:5036
+[2026-09-29 21:17:26] WS: Connected to live.ctraderapi.com:5036
+[2026-09-29 21:17:26] AUTH: Application authenticated
+[2026-09-29 21:17:26] AUTH: Re-discovering accounts with fresh token...
+[2026-09-29 21:17:26] AUTH: Found 2 accounts for env LIVE
+[2026-09-29 21:17:26] AUTH: Re-discovered accountId: 23706452 (from 2 candidates)
+[2026-09-29 21:17:26] AUTH: Account 23706452 authenticated
+[2026-09-29 21:17:26] AUTH: Login successful after retry (env=LIVE, account=23706452)
+[2026-09-29 21:17:26] SYM: Received 308 symbols
+[2026-09-29 21:17:26] SYM: Stored 193 enabled symbols
+[2026-09-29 21:17:26] SYM: Updated details for 50 symbols
+[2026-09-29 21:17:26] SYM: Updated details for 50 symbols
+[2026-09-29 21:17:26] SYM: Updated details for 50 symbols
+[2026-09-29 21:17:26] SYM: Updated details for 43 symbols
+[2026-09-29 21:17:26] ACC: depositAssetId=16
+[2026-09-29 21:17:26] ACC: Equity initialized from balance: 3.66
+[2026-09-29 21:17:26] ACC: Balance=3.66 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:17:26] TRADE: Requesting position reconciliation
+[2026-09-29 21:17:26] TRADE: Reconcile: 1 open positions
+[2026-09-29 21:17:26] BROKER: Login complete. 193 symbols loaded.
+[2026-09-29 21:17:26] NET: NetworkThread started
+[2026-09-29 21:17:27] ASSET: M7 margin loaded for EUR/USD: marginPerLot=1.1300 (vol=100000)
+[2026-09-29 21:17:27] ASSET: EUR/USD: bid=1.13394 ask=1.13394 LotAmt=1000.0 PipCost=0.100000 MCost=1.1300 Roll=-0.8300/0.1500 Comm=0.0000
+[2026-09-29 21:17:27] ASSET: M7 margin loaded for GBP/USD: marginPerLot=1.3200 (vol=100000)
+[2026-09-29 21:17:27] ASSET: GBP/USD: bid=1.32273 ask=1.32275 LotAmt=1000.0 PipCost=0.100000 MCost=1.3200 Roll=-0.4800/-0.3200 Comm=0.0000
+[2026-09-29 21:17:28] ASSET: M7 margin loaded for XAU/USD: marginPerLot=4.1700 (vol=100)
+[2026-09-29 21:17:28] ASSET: XAU/USD: bid=4169.16000 ask=4169.21000 LotAmt=1.0 PipCost=0.010000 MCost=4.1700 Roll=-0.6172/0.4233 Comm=0.0000
+[2026-09-29 21:17:28] ASSET: EUR/USD: bid=1.13393 ask=1.13394 LotAmt=1000.0 PipCost=0.100000 MCost=1.1300 Roll=-0.8300/0.1500 Comm=-0.6804
+[2026-09-29 21:17:29] ASSET: GBP/USD: bid=1.32273 ask=1.32275 LotAmt=1000.0 PipCost=0.100000 MCost=1.3200 Roll=-0.4800/-0.3200 Comm=-0.7937
+[2026-09-29 21:17:29] ASSET: XAU/USD: bid=4169.13000 ask=4169.18000 LotAmt=1.0 PipCost=0.010000 MCost=4.1700 Roll=-0.6172/0.4233 Comm=-2501.5080
+[2026-09-29 21:17:55] ACC: depositAssetId=16
+[2026-09-29 21:17:55] ACC: Balance=3.66 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:18:20] ACC: depositAssetId=16
+[2026-09-29 21:18:20] ACC: Balance=3.66 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:18:45] ACC: depositAssetId=16
+[2026-09-29 21:18:45] ACC: Balance=3.66 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:19:10] ACC: depositAssetId=16
+[2026-09-29 21:19:10] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:19:35] ACC: depositAssetId=16
+[2026-09-29 21:19:35] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[DEBUG] direct write test from BrokerOpen v4.12.0-jev1
+[2026-09-29 21:19:41] BROKER: BrokerOpen - cTraderJev v4.12.0-jev1
+[2026-09-29 21:19:41] WS: Disconnected
+[2026-09-29 21:20:00] ACC: depositAssetId=16
+[2026-09-29 21:20:00] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:20:25] ACC: depositAssetId=16
+[2026-09-29 21:20:25] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:20:50] ACC: depositAssetId=16
+[2026-09-29 21:20:50] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:21:15] ACC: depositAssetId=16
+[2026-09-29 21:21:15] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:21:40] ACC: depositAssetId=16
+[2026-09-29 21:21:40] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:22:05] ACC: depositAssetId=16
+[2026-09-29 21:22:05] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:22:30] ACC: depositAssetId=16
+[2026-09-29 21:22:30] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:22:55] ACC: depositAssetId=16
+[2026-09-29 21:22:55] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:23:20] ACC: depositAssetId=16
+[2026-09-29 21:23:20] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[DEBUG] direct write test from BrokerOpen v4.12.0-jev1
+[2026-09-29 21:23:25] BROKER: BrokerOpen - cTraderJev v4.12.0-jev1
+[2026-09-29 21:23:25] BROKER: BrokerLogin FIRST: user= type=Real
+[2026-09-29 21:23:25] STATE: Session state reset
+[2026-09-29 21:23:25] AUTH: Instance tag: 'JevTradeDeep' (shared-account label namespace)
+[2026-09-29 21:23:25] AUTH: Environment set to LIVE (locked)
+[2026-09-29 21:23:25] AUTH: Reading CSV: C:\Users\Administrator\Desktop\z12\Plugin\accounts.csv
+[2026-09-29 21:23:25] AUTH: CSV has 13 columns (user=)
+[2026-09-29 21:23:25] AUTH: CSV loaded: clientId=USD... accountId=9007309 env=LIVE redirectUri=http://127.0.0.1:53123/callback
+[2026-09-29 21:23:25] AUTH: Loaded client_id from token file (CSV had none)
+[2026-09-29 21:23:25] AUTH: Loaded client_secret from token file (CSV had none)
+[2026-09-29 21:23:25] AUTH: Loaded token from oauth_token.json (token=mJg09AxAUku2_EGGfDL4...)
+[2026-09-29 21:23:25] AUTH: Proactively refreshing access token...
+[2026-09-29 21:23:25] AUTH: Loaded token from oauth_token.json (token=mJg09AxAUku2_EGGfDL4...)
+[2026-09-29 21:23:25] AUTH: Refreshing access token...
+[2026-09-29 21:23:25] AUTH: Token saved to oauth_token.json
+[2026-09-29 21:23:25] AUTH: Token refreshed (new token=-1f-cqtNTFkh45q4v3vK...)
+[2026-09-29 21:23:25] AUTH: Token refreshed proactively (new token=-1f-cqtNTFkh45q4v3vK...)
+[2026-09-29 21:23:25] AUTH: Credentials ready: clientId=22088_18UMbjtDBgRCBl... accountId=9007309 token=-1f-cqtNTFkh45q4v3vK...
+[2026-09-29 21:23:25] WS: Connecting to live.ctraderapi.com:5036
+[2026-09-29 21:23:25] WS: Connected to live.ctraderapi.com:5036
+[2026-09-29 21:23:25] AUTH: Application authenticated
+[2026-09-29 21:23:25] AUTH: AccountAuth rejected: Unable to find cTID trader account with id=9007309
+[2026-09-29 21:23:25] AUTH: Account auth failed (accountId=9007309 may be invalid)
+[2026-09-29 21:23:25] WS: Disconnected
+[2026-09-29 21:23:25] AUTH: Loaded token from oauth_token.json (token=-1f-cqtNTFkh45q4v3vK...)
+[2026-09-29 21:23:25] AUTH: Refreshing access token...
+[2026-09-29 21:23:25] AUTH: Token saved to oauth_token.json
+[2026-09-29 21:23:25] AUTH: Token refreshed (new token=8pl2ke9TnJQ__3AsL166...)
+[2026-09-29 21:23:25] WS: Connecting to live.ctraderapi.com:5036
+[2026-09-29 21:23:25] WS: Connected to live.ctraderapi.com:5036
+[2026-09-29 21:23:25] AUTH: Application authenticated
+[2026-09-29 21:23:25] AUTH: Re-discovering accounts with fresh token...
+[2026-09-29 21:23:26] AUTH: Found 2 accounts for env LIVE
+[2026-09-29 21:23:26] AUTH: Re-discovered accountId: 23706452 (from 2 candidates)
+[2026-09-29 21:23:26] AUTH: Account 23706452 authenticated
+[2026-09-29 21:23:26] AUTH: Login successful after retry (env=LIVE, account=23706452)
+[2026-09-29 21:23:26] SYM: Received 308 symbols
+[2026-09-29 21:23:26] SYM: Stored 193 enabled symbols
+[2026-09-29 21:23:26] SYM: Updated details for 50 symbols
+[2026-09-29 21:23:26] SYM: Updated details for 50 symbols
+[2026-09-29 21:23:26] SYM: Updated details for 50 symbols
+[2026-09-29 21:23:26] SYM: Updated details for 43 symbols
+[2026-09-29 21:23:26] ACC: depositAssetId=16
+[2026-09-29 21:23:26] ACC: Equity initialized from balance: 3.09
+[2026-09-29 21:23:26] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:23:26] TRADE: Requesting position reconciliation
+[2026-09-29 21:23:26] TRADE: Reconcile: no open positions
+[2026-09-29 21:23:26] BROKER: Login complete. 193 symbols loaded.
+[2026-09-29 21:23:26] NET: NetworkThread started
+[2026-09-29 21:23:26] ASSET: M7 margin loaded for EUR/USD: marginPerLot=1.1300 (vol=100000)
+[2026-09-29 21:23:26] ASSET: EUR/USD: bid=1.13410 ask=1.13411 LotAmt=1000.0 PipCost=0.100000 MCost=1.1300 Roll=-0.8300/0.1500 Comm=0.0000
+[2026-09-29 21:23:26] ASSET: EUR/USD: bid=1.13410 ask=1.13411 LotAmt=1000.0 PipCost=0.100000 MCost=1.1300 Roll=-0.8300/0.1500 Comm=-0.6805
+[2026-09-29 21:23:27] ASSET: M7 margin loaded for GBP/USD: marginPerLot=1.3200 (vol=100000)
+[2026-09-29 21:23:27] ASSET: GBP/USD: bid=1.32296 ask=1.32298 LotAmt=1000.0 PipCost=0.100000 MCost=1.3200 Roll=-0.4800/-0.3200 Comm=-0.7938
+[2026-09-29 21:23:27] ASSET: M7 margin loaded for XAU/USD: marginPerLot=4.1700 (vol=100)
+[2026-09-29 21:23:27] ASSET: XAU/USD: bid=4170.06000 ask=4170.13000 LotAmt=1.0 PipCost=0.010000 MCost=4.1700 Roll=-0.6172/0.4233 Comm=-2502.0780
+[2026-09-29 21:23:45] BROKER: BrokerLogin: logout requested
+[2026-09-29 21:23:45] NET: NetworkThread exiting (G.running=0)
+[2026-09-29 21:23:46] WS: Disconnected
+[2026-09-29 21:23:53] ACC: depositAssetId=16
+[2026-09-29 21:23:53] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:24:18] ACC: depositAssetId=16
+[2026-09-29 21:24:18] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:24:43] ACC: depositAssetId=16
+[2026-09-29 21:24:43] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:25:08] ACC: depositAssetId=16
+[2026-09-29 21:25:08] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:25:33] ACC: depositAssetId=16
+[2026-09-29 21:25:33] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:25:58] ACC: depositAssetId=16
+[2026-09-29 21:25:58] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:26:24] ACC: depositAssetId=16
+[2026-09-29 21:26:24] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:26:49] ACC: depositAssetId=16
+[2026-09-29 21:26:49] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:27:14] ACC: depositAssetId=16
+[2026-09-29 21:27:14] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:27:39] ACC: depositAssetId=16
+[2026-09-29 21:27:39] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:28:04] ACC: depositAssetId=16
+[2026-09-29 21:28:04] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:28:29] ACC: depositAssetId=16
+[2026-09-29 21:28:29] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:28:54] ACC: depositAssetId=16
+[2026-09-29 21:28:54] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:29:19] ACC: depositAssetId=16
+[2026-09-29 21:29:19] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:29:38] WS: Disconnected
+[2026-09-29 21:29:44] ACC: depositAssetId=16
+[2026-09-29 21:29:44] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:30:09] ACC: depositAssetId=16
+[2026-09-29 21:30:09] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:30:34] ACC: depositAssetId=16
+[2026-09-29 21:30:34] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:30:59] ACC: depositAssetId=16
+[2026-09-29 21:30:59] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:31:24] ACC: depositAssetId=16
+[2026-09-29 21:31:24] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:31:49] ACC: depositAssetId=16
+[2026-09-29 21:31:49] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:32:14] ACC: depositAssetId=16
+[2026-09-29 21:32:14] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:32:39] ACC: depositAssetId=16
+[2026-09-29 21:32:39] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:33:05] ACC: depositAssetId=16
+[2026-09-29 21:33:05] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:33:30] ACC: depositAssetId=16
+[2026-09-29 21:33:30] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:33:55] ACC: depositAssetId=16
+[2026-09-29 21:33:55] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:34:20] ACC: depositAssetId=16
+[2026-09-29 21:34:20] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:34:45] ACC: depositAssetId=16
+[2026-09-29 21:34:45] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:35:10] ACC: depositAssetId=16
+[2026-09-29 21:35:10] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:35:35] ACC: depositAssetId=16
+[2026-09-29 21:35:35] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:36:00] ACC: depositAssetId=16
+[2026-09-29 21:36:00] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:36:25] ACC: depositAssetId=16
+[2026-09-29 21:36:25] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:36:50] ACC: depositAssetId=16
+[2026-09-29 21:36:50] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:37:15] ACC: depositAssetId=16
+[2026-09-29 21:37:15] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:37:40] ACC: depositAssetId=16
+[2026-09-29 21:37:40] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:38:05] ACC: depositAssetId=16
+[2026-09-29 21:38:05] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:38:30] ACC: depositAssetId=16
+[2026-09-29 21:38:30] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:38:55] ACC: depositAssetId=16
+[2026-09-29 21:38:55] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:39:20] ACC: depositAssetId=16
+[2026-09-29 21:39:20] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:39:46] ACC: depositAssetId=16
+[2026-09-29 21:39:46] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:40:11] ACC: depositAssetId=16
+[2026-09-29 21:40:11] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:40:36] ACC: depositAssetId=16
+[2026-09-29 21:40:36] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:41:01] ACC: depositAssetId=16
+[2026-09-29 21:41:01] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:41:26] ACC: depositAssetId=16
+[2026-09-29 21:41:26] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:41:51] ACC: depositAssetId=16
+[2026-09-29 21:41:51] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:42:16] ACC: depositAssetId=16
+[2026-09-29 21:42:16] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:42:41] ACC: depositAssetId=16
+[2026-09-29 21:42:41] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:43:06] ACC: depositAssetId=16
+[2026-09-29 21:43:06] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:43:31] ACC: depositAssetId=16
+[2026-09-29 21:43:31] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:43:56] ACC: depositAssetId=16
+[2026-09-29 21:43:56] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:44:21] ACC: depositAssetId=16
+[2026-09-29 21:44:21] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:44:46] ACC: depositAssetId=16
+[2026-09-29 21:44:46] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:45:11] ACC: depositAssetId=16
+[2026-09-29 21:45:11] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:45:36] ACC: depositAssetId=16
+[2026-09-29 21:45:36] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:46:02] ACC: depositAssetId=16
+[2026-09-29 21:46:02] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:46:27] ACC: depositAssetId=16
+[2026-09-29 21:46:27] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:46:52] ACC: depositAssetId=16
+[2026-09-29 21:46:52] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:47:17] ACC: depositAssetId=16
+[2026-09-29 21:47:17] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:47:42] ACC: depositAssetId=16
+[2026-09-29 21:47:42] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:48:07] ACC: depositAssetId=16
+[2026-09-29 21:48:07] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:48:32] ACC: depositAssetId=16
+[2026-09-29 21:48:32] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:48:57] ACC: depositAssetId=16
+[2026-09-29 21:48:57] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:49:22] ACC: depositAssetId=16
+[2026-09-29 21:49:22] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:49:47] ACC: depositAssetId=16
+[2026-09-29 21:49:47] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:50:12] ACC: depositAssetId=16
+[2026-09-29 21:50:12] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:50:37] ACC: depositAssetId=16
+[2026-09-29 21:50:37] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:51:02] ACC: depositAssetId=16
+[2026-09-29 21:51:02] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:51:27] ACC: depositAssetId=16
+[2026-09-29 21:51:27] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:51:52] ACC: depositAssetId=16
+[2026-09-29 21:51:52] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:52:17] ACC: depositAssetId=16
+[2026-09-29 21:52:17] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:52:43] ACC: depositAssetId=16
+[2026-09-29 21:52:43] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:53:08] ACC: depositAssetId=16
+[2026-09-29 21:53:08] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:53:33] ACC: depositAssetId=16
+[2026-09-29 21:53:33] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:53:58] ACC: depositAssetId=16
+[2026-09-29 21:53:58] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:54:23] ACC: depositAssetId=16
+[2026-09-29 21:54:23] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:54:48] ACC: depositAssetId=16
+[2026-09-29 21:54:48] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:55:13] ACC: depositAssetId=16
+[2026-09-29 21:55:13] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:55:38] ACC: depositAssetId=16
+[2026-09-29 21:55:38] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:56:03] ACC: depositAssetId=16
+[2026-09-29 21:56:03] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:56:28] ACC: depositAssetId=16
+[2026-09-29 21:56:28] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:56:53] ACC: depositAssetId=16
+[2026-09-29 21:56:53] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:57:18] ACC: depositAssetId=16
+[2026-09-29 21:57:18] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:57:43] ACC: depositAssetId=16
+[2026-09-29 21:57:43] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:58:08] ACC: depositAssetId=16
+[2026-09-29 21:58:08] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:58:33] ACC: depositAssetId=16
+[2026-09-29 21:58:33] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:58:58] ACC: depositAssetId=16
+[2026-09-29 21:58:58] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:59:23] ACC: depositAssetId=16
+[2026-09-29 21:59:23] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 21:59:49] ACC: depositAssetId=16
+[2026-09-29 21:59:49] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:00:14] ASSET: EUR/USD: bid=1.13386 ask=1.13387 LotAmt=1000.0 PipCost=0.100000 MCost=1.1300 Roll=-0.8300/0.1500 Comm=-0.6803
+[2026-09-29 22:00:14] ASSET: GBP/USD: bid=1.32287 ask=1.32289 LotAmt=1000.0 PipCost=0.100000 MCost=1.3200 Roll=-0.4800/-0.3200 Comm=-0.7937
+[2026-09-29 22:00:14] ASSET: XAU/USD: bid=4177.14000 ask=4177.25000 LotAmt=1.0 PipCost=0.010000 MCost=4.1700 Roll=-0.6172/0.4233 Comm=-2506.3500
+[2026-09-29 22:00:14] DEPTH: Subscribe depth quotes symbolId=1: sent
+[2026-09-29 22:00:15] TRADE: NewOrder: SELL EUR/USD amount=-1000 vol=100000 type=1 zorroId=2 SL=0.00000 TP=0.00000 limit=0.00000 orderPrice=0.00000 label=z_2__JevTradeDeep
+[2026-09-29 22:00:15] TRADE: Order filled: zorroId=2 posId=264654081 price=1.13388 vol=100000
+[2026-09-29 22:00:15] DEPTH: Subscribe depth quotes symbolId=2: sent
+[2026-09-29 22:00:16] DEPTH: Subscribe depth quotes symbolId=41: sent
+[2026-09-29 22:00:18] TRADE: [ERROR] BuyOrder REJECTED by margin guard: XAU/USD vol=100 needs ~4.17 margin, free=3.09 (90% cap) — reduce position size!
+[2026-09-29 22:00:18] ACC: depositAssetId=16
+[2026-09-29 22:00:18] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:00:43] ACC: depositAssetId=16
+[2026-09-29 22:00:43] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:01:08] ACC: depositAssetId=16
+[2026-09-29 22:01:08] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:01:33] ACC: depositAssetId=16
+[2026-09-29 22:01:33] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:01:58] ACC: depositAssetId=16
+[2026-09-29 22:01:58] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:02:23] ACC: depositAssetId=16
+[2026-09-29 22:02:23] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:02:48] ACC: depositAssetId=16
+[2026-09-29 22:02:48] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:03:13] ACC: depositAssetId=16
+[2026-09-29 22:03:13] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:03:39] ACC: depositAssetId=16
+[2026-09-29 22:03:39] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:04:04] ACC: depositAssetId=16
+[2026-09-29 22:04:04] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:04:29] ACC: depositAssetId=16
+[2026-09-29 22:04:29] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:04:54] ACC: depositAssetId=16
+[2026-09-29 22:04:54] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:05:19] ACC: depositAssetId=16
+[2026-09-29 22:05:19] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:05:44] ACC: depositAssetId=16
+[2026-09-29 22:05:44] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:06:09] ACC: depositAssetId=16
+[2026-09-29 22:06:09] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:06:34] ACC: depositAssetId=16
+[2026-09-29 22:06:34] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:06:59] ACC: depositAssetId=16
+[2026-09-29 22:06:59] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:07:25] ACC: depositAssetId=16
+[2026-09-29 22:07:25] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:07:50] ACC: depositAssetId=16
+[2026-09-29 22:07:50] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:08:15] ACC: depositAssetId=16
+[2026-09-29 22:08:15] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:08:40] ACC: depositAssetId=16
+[2026-09-29 22:08:40] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:09:05] ACC: depositAssetId=16
+[2026-09-29 22:09:05] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:09:30] ACC: depositAssetId=16
+[2026-09-29 22:09:30] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:09:55] ACC: depositAssetId=16
+[2026-09-29 22:09:55] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:10:20] ACC: depositAssetId=16
+[2026-09-29 22:10:20] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:10:45] ACC: depositAssetId=16
+[2026-09-29 22:10:45] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:11:11] ACC: depositAssetId=16
+[2026-09-29 22:11:11] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:11:36] ACC: depositAssetId=16
+[2026-09-29 22:11:36] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:12:01] ACC: depositAssetId=16
+[2026-09-29 22:12:01] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:12:26] ACC: depositAssetId=16
+[2026-09-29 22:12:26] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:12:51] ACC: depositAssetId=16
+[2026-09-29 22:12:51] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:13:16] ACC: depositAssetId=16
+[2026-09-29 22:13:16] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:13:41] ACC: depositAssetId=16
+[2026-09-29 22:13:41] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:14:06] ACC: depositAssetId=16
+[2026-09-29 22:14:06] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:14:31] ACC: depositAssetId=16
+[2026-09-29 22:14:31] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:14:56] ACC: depositAssetId=16
+[2026-09-29 22:14:56] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:15:22] ACC: depositAssetId=16
+[2026-09-29 22:15:22] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:15:47] ACC: depositAssetId=16
+[2026-09-29 22:15:47] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:16:12] ACC: depositAssetId=16
+[2026-09-29 22:16:12] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:16:37] ACC: depositAssetId=16
+[2026-09-29 22:16:37] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:17:02] ACC: depositAssetId=16
+[2026-09-29 22:17:02] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:17:27] ACC: depositAssetId=16
+[2026-09-29 22:17:27] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:17:52] ACC: depositAssetId=16
+[2026-09-29 22:17:52] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:18:17] ACC: depositAssetId=16
+[2026-09-29 22:18:17] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:18:42] ACC: depositAssetId=16
+[2026-09-29 22:18:42] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:19:08] ACC: depositAssetId=16
+[2026-09-29 22:19:08] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:19:33] ACC: depositAssetId=16
+[2026-09-29 22:19:33] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:19:58] ACC: depositAssetId=16
+[2026-09-29 22:19:58] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:20:23] ACC: depositAssetId=16
+[2026-09-29 22:20:23] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:20:48] ACC: depositAssetId=16
+[2026-09-29 22:20:48] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:21:13] ACC: depositAssetId=16
+[2026-09-29 22:21:13] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:21:38] ACC: depositAssetId=16
+[2026-09-29 22:21:38] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:22:03] ACC: depositAssetId=16
+[2026-09-29 22:22:03] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:22:29] ACC: depositAssetId=16
+[2026-09-29 22:22:29] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:22:54] ACC: depositAssetId=16
+[2026-09-29 22:22:54] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:23:19] ACC: depositAssetId=16
+[2026-09-29 22:23:19] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:23:44] ACC: depositAssetId=16
+[2026-09-29 22:23:44] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:24:09] ACC: depositAssetId=16
+[2026-09-29 22:24:09] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:24:34] ACC: depositAssetId=16
+[2026-09-29 22:24:34] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:24:59] ACC: depositAssetId=16
+[2026-09-29 22:24:59] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:25:24] ACC: depositAssetId=16
+[2026-09-29 22:25:24] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:25:49] ACC: depositAssetId=16
+[2026-09-29 22:25:49] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:26:15] ACC: depositAssetId=16
+[2026-09-29 22:26:15] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:26:40] ACC: depositAssetId=16
+[2026-09-29 22:26:40] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:27:05] ACC: depositAssetId=16
+[2026-09-29 22:27:05] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:27:30] ACC: depositAssetId=16
+[2026-09-29 22:27:30] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:27:55] ACC: depositAssetId=16
+[2026-09-29 22:27:55] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:28:20] ACC: depositAssetId=16
+[2026-09-29 22:28:20] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:28:45] ACC: depositAssetId=16
+[2026-09-29 22:28:45] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:29:10] ACC: depositAssetId=16
+[2026-09-29 22:29:10] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:29:35] ACC: depositAssetId=16
+[2026-09-29 22:29:35] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:30:01] ACC: depositAssetId=16
+[2026-09-29 22:30:01] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:30:26] ACC: depositAssetId=16
+[2026-09-29 22:30:26] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:30:51] ACC: depositAssetId=16
+[2026-09-29 22:30:51] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:31:16] ACC: depositAssetId=16
+[2026-09-29 22:31:16] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:31:41] ACC: depositAssetId=16
+[2026-09-29 22:31:41] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:32:06] ACC: depositAssetId=16
+[2026-09-29 22:32:06] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:32:31] ACC: depositAssetId=16
+[2026-09-29 22:32:31] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:32:56] ACC: depositAssetId=16
+[2026-09-29 22:32:56] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:33:13] BROKER: BrokerLogin: logout requested
+[2026-09-29 22:33:14] NET: NetworkThread exiting (G.running=0)
+[2026-09-29 22:33:14] WS: Disconnected
+[2026-09-29 22:33:18] BROKER: BrokerLogin FIRST: user= type=Real
+[2026-09-29 22:33:18] STATE: Session state reset
+[2026-09-29 22:33:18] AUTH: Instance tag: 'JevTradeDeep' (shared-account label namespace)
+[2026-09-29 22:33:18] AUTH: Environment set to LIVE (locked)
+[2026-09-29 22:33:18] AUTH: Reading CSV: C:\Users\Administrator\Desktop\z12\Plugin\accounts.csv
+[2026-09-29 22:33:18] AUTH: CSV has 13 columns (user=)
+[2026-09-29 22:33:18] AUTH: CSV loaded: clientId=USD... accountId=9007309 env=LIVE redirectUri=http://127.0.0.1:53123/callback
+[2026-09-29 22:33:18] AUTH: Loaded client_id from token file (CSV had none)
+[2026-09-29 22:33:18] AUTH: Loaded client_secret from token file (CSV had none)
+[2026-09-29 22:33:18] AUTH: Loaded token from oauth_token.json (token=8pl2ke9TnJQ__3AsL166...)
+[2026-09-29 22:33:18] AUTH: Proactively refreshing access token...
+[2026-09-29 22:33:18] AUTH: Loaded token from oauth_token.json (token=8pl2ke9TnJQ__3AsL166...)
+[2026-09-29 22:33:18] AUTH: Refreshing access token...
+[2026-09-29 22:33:18] AUTH: Token saved to oauth_token.json
+[2026-09-29 22:33:18] AUTH: Token refreshed (new token=TCKQMCVZAsKUcsLIz2zg...)
+[2026-09-29 22:33:18] AUTH: Token refreshed proactively (new token=TCKQMCVZAsKUcsLIz2zg...)
+[2026-09-29 22:33:18] AUTH: Credentials ready: clientId=22088_18UMbjtDBgRCBl... accountId=9007309 token=TCKQMCVZAsKUcsLIz2zg...
+[2026-09-29 22:33:18] WS: Connecting to live.ctraderapi.com:5036
+[2026-09-29 22:33:19] WS: Connected to live.ctraderapi.com:5036
+[2026-09-29 22:33:19] AUTH: Application authenticated
+[2026-09-29 22:33:19] AUTH: AccountAuth rejected: Unable to find cTID trader account with id=9007309
+[2026-09-29 22:33:19] AUTH: Account auth failed (accountId=9007309 may be invalid)
+[2026-09-29 22:33:19] WS: Disconnected
+[2026-09-29 22:33:19] AUTH: Loaded token from oauth_token.json (token=TCKQMCVZAsKUcsLIz2zg...)
+[2026-09-29 22:33:19] AUTH: Refreshing access token...
+[2026-09-29 22:33:19] AUTH: Token saved to oauth_token.json
+[2026-09-29 22:33:19] AUTH: Token refreshed (new token=7d8VyVFypLU5_SjK1fzR...)
+[2026-09-29 22:33:19] WS: Connecting to live.ctraderapi.com:5036
+[2026-09-29 22:33:19] WS: Connected to live.ctraderapi.com:5036
+[2026-09-29 22:33:19] AUTH: Application authenticated
+[2026-09-29 22:33:19] AUTH: Re-discovering accounts with fresh token...
+[2026-09-29 22:33:19] AUTH: Found 2 accounts for env LIVE
+[2026-09-29 22:33:19] AUTH: Re-discovered accountId: 23706452 (from 2 candidates)
+[2026-09-29 22:33:19] AUTH: Account 23706452 authenticated
+[2026-09-29 22:33:19] AUTH: Login successful after retry (env=LIVE, account=23706452)
+[2026-09-29 22:33:19] SYM: Received 308 symbols
+[2026-09-29 22:33:19] SYM: Stored 193 enabled symbols
+[2026-09-29 22:33:19] SYM: Updated details for 50 symbols
+[2026-09-29 22:33:19] SYM: Updated details for 50 symbols
+[2026-09-29 22:33:19] SYM: Updated details for 50 symbols
+[2026-09-29 22:33:19] SYM: Updated details for 43 symbols
+[2026-09-29 22:33:19] ACC: depositAssetId=16
+[2026-09-29 22:33:19] ACC: Equity initialized from balance: 3.09
+[2026-09-29 22:33:19] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:33:19] TRADE: Requesting position reconciliation
+[2026-09-29 22:33:19] TRADE: Reconcile: 1 open positions
+[2026-09-29 22:33:19] BROKER: Login complete. 193 symbols loaded.
+[2026-09-29 22:33:19] NET: NetworkThread started
+[2026-09-29 22:33:20] ASSET: M7 margin loaded for EUR/USD: marginPerLot=1.1300 (vol=100000)
+[2026-09-29 22:33:20] ASSET: EUR/USD: bid=1.13361 ask=1.13362 LotAmt=1000.0 PipCost=0.100000 MCost=1.1300 Roll=-0.8300/0.1500 Comm=0.0000
+[2026-09-29 22:33:21] ASSET: EUR/USD: bid=1.13361 ask=1.13362 LotAmt=1000.0 PipCost=0.100000 MCost=1.1300 Roll=-0.8300/0.1500 Comm=-0.6802
+[2026-09-29 22:33:21] ASSET: M7 margin loaded for GBP/USD: marginPerLot=1.3200 (vol=100000)
+[2026-09-29 22:33:21] ASSET: GBP/USD: bid=1.32279 ask=1.32280 LotAmt=1000.0 PipCost=0.100000 MCost=1.3200 Roll=-0.4800/-0.3200 Comm=-0.7937
+[2026-09-29 22:33:22] ASSET: M7 margin loaded for XAU/USD: marginPerLot=4.1800 (vol=100)
+[2026-09-29 22:33:22] ASSET: XAU/USD: bid=4177.44000 ask=4177.52000 LotAmt=1.0 PipCost=0.010000 MCost=4.1800 Roll=-0.6172/0.4233 Comm=-2506.5120
+[2026-09-29 22:33:48] ACC: depositAssetId=16
+[2026-09-29 22:33:48] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:34:13] ACC: depositAssetId=16
+[2026-09-29 22:34:13] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:34:38] ACC: depositAssetId=16
+[2026-09-29 22:34:38] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:35:03] ACC: depositAssetId=16
+[2026-09-29 22:35:03] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:35:11] BROKER: BrokerLogin: logout requested
+[2026-09-29 22:35:12] NET: NetworkThread exiting (G.running=0)
+[2026-09-29 22:35:12] WS: Disconnected
+[2026-09-29 22:35:13] BROKER: BrokerLogin FIRST: user= type=Real
+[2026-09-29 22:35:13] STATE: Session state reset
+[2026-09-29 22:35:13] AUTH: Instance tag: 'JevTradeDeep' (shared-account label namespace)
+[2026-09-29 22:35:13] AUTH: Environment set to LIVE (locked)
+[2026-09-29 22:35:13] AUTH: Reading CSV: C:\Users\Administrator\Desktop\z12\Plugin\accounts.csv
+[2026-09-29 22:35:13] AUTH: CSV has 13 columns (user=)
+[2026-09-29 22:35:13] AUTH: CSV loaded: clientId=USD... accountId=9007309 env=LIVE redirectUri=http://127.0.0.1:53123/callback
+[2026-09-29 22:35:13] AUTH: Loaded client_id from token file (CSV had none)
+[2026-09-29 22:35:13] AUTH: Loaded client_secret from token file (CSV had none)
+[2026-09-29 22:35:13] AUTH: Loaded token from oauth_token.json (token=7d8VyVFypLU5_SjK1fzR...)
+[2026-09-29 22:35:13] AUTH: Proactively refreshing access token...
+[2026-09-29 22:35:13] AUTH: Loaded token from oauth_token.json (token=7d8VyVFypLU5_SjK1fzR...)
+[2026-09-29 22:35:13] AUTH: Refreshing access token...
+[2026-09-29 22:35:13] AUTH: Token saved to oauth_token.json
+[2026-09-29 22:35:13] AUTH: Token refreshed (new token=xl5dRlEodtE3ppFhnbtw...)
+[2026-09-29 22:35:13] AUTH: Token refreshed proactively (new token=xl5dRlEodtE3ppFhnbtw...)
+[2026-09-29 22:35:13] AUTH: Credentials ready: clientId=22088_18UMbjtDBgRCBl... accountId=9007309 token=xl5dRlEodtE3ppFhnbtw...
+[2026-09-29 22:35:13] WS: Connecting to live.ctraderapi.com:5036
+[2026-09-29 22:35:13] WS: Connected to live.ctraderapi.com:5036
+[2026-09-29 22:35:13] AUTH: Application authenticated
+[2026-09-29 22:35:13] AUTH: AccountAuth rejected: Unable to find cTID trader account with id=9007309
+[2026-09-29 22:35:13] AUTH: Account auth failed (accountId=9007309 may be invalid)
+[2026-09-29 22:35:13] WS: Disconnected
+[2026-09-29 22:35:13] AUTH: Loaded token from oauth_token.json (token=xl5dRlEodtE3ppFhnbtw...)
+[2026-09-29 22:35:13] AUTH: Refreshing access token...
+[2026-09-29 22:35:13] AUTH: Token saved to oauth_token.json
+[2026-09-29 22:35:13] AUTH: Token refreshed (new token=JV0TiBp9gwKB6FuMdq1L...)
+[2026-09-29 22:35:13] WS: Connecting to live.ctraderapi.com:5036
+[2026-09-29 22:35:13] WS: Connected to live.ctraderapi.com:5036
+[2026-09-29 22:35:14] AUTH: Application authenticated
+[2026-09-29 22:35:14] AUTH: Re-discovering accounts with fresh token...
+[2026-09-29 22:35:14] AUTH: Found 2 accounts for env LIVE
+[2026-09-29 22:35:14] AUTH: Re-discovered accountId: 23706452 (from 2 candidates)
+[2026-09-29 22:35:14] AUTH: Account 23706452 authenticated
+[2026-09-29 22:35:14] AUTH: Login successful after retry (env=LIVE, account=23706452)
+[2026-09-29 22:35:14] SYM: Received 308 symbols
+[2026-09-29 22:35:14] SYM: Stored 193 enabled symbols
+[2026-09-29 22:35:14] SYM: Updated details for 50 symbols
+[2026-09-29 22:35:14] SYM: Updated details for 50 symbols
+[2026-09-29 22:35:14] SYM: Updated details for 50 symbols
+[2026-09-29 22:35:14] SYM: Updated details for 43 symbols
+[2026-09-29 22:35:14] ACC: depositAssetId=16
+[2026-09-29 22:35:14] ACC: Equity initialized from balance: 3.09
+[2026-09-29 22:35:14] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:35:14] TRADE: Requesting position reconciliation
+[2026-09-29 22:35:14] TRADE: Reconcile: 1 open positions
+[2026-09-29 22:35:14] BROKER: Login complete. 193 symbols loaded.
+[2026-09-29 22:35:14] NET: NetworkThread started
+[2026-09-29 22:35:14] ASSET: M7 margin loaded for EUR/USD: marginPerLot=1.1300 (vol=100000)
+[2026-09-29 22:35:14] ASSET: EUR/USD: bid=1.13377 ask=1.13377 LotAmt=1000.0 PipCost=0.100000 MCost=1.1300 Roll=-0.8300/0.1500 Comm=0.0000
+[2026-09-29 22:35:14] ASSET: EUR/USD: bid=1.13377 ask=1.13377 LotAmt=1000.0 PipCost=0.100000 MCost=1.1300 Roll=-0.8300/0.1500 Comm=-0.6803
+[2026-09-29 22:35:15] ASSET: M7 margin loaded for GBP/USD: marginPerLot=1.3200 (vol=100000)
+[2026-09-29 22:35:15] ASSET: GBP/USD: bid=1.32294 ask=1.32295 LotAmt=1000.0 PipCost=0.100000 MCost=1.3200 Roll=-0.4800/-0.3200 Comm=-0.7938
+[2026-09-29 22:35:15] ASSET: M7 margin loaded for XAU/USD: marginPerLot=4.1800 (vol=100)
+[2026-09-29 22:35:15] ASSET: XAU/USD: bid=4178.19000 ask=4178.30000 LotAmt=1.0 PipCost=0.010000 MCost=4.1800 Roll=-0.6172/0.4233 Comm=-2506.9800
+[2026-09-29 22:35:41] ACC: depositAssetId=16
+[2026-09-29 22:35:41] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:36:06] ACC: depositAssetId=16
+[2026-09-29 22:36:06] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:36:31] ACC: depositAssetId=16
+[2026-09-29 22:36:31] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:36:57] ACC: depositAssetId=16
+[2026-09-29 22:36:57] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:37:18] BROKER: BrokerLogin: logout requested
+[2026-09-29 22:37:21] NET: NetworkThread exiting (G.running=0)
+[2026-09-29 22:37:21] WS: Disconnected
+[2026-09-29 22:37:21] BROKER: BrokerLogin FIRST: user= type=Real
+[2026-09-29 22:37:21] STATE: Session state reset
+[2026-09-29 22:37:21] AUTH: Instance tag: 'JevTradeDeep' (shared-account label namespace)
+[2026-09-29 22:37:21] AUTH: Environment set to LIVE (locked)
+[2026-09-29 22:37:21] AUTH: Reading CSV: C:\Users\Administrator\Desktop\z12\Plugin\accounts.csv
+[2026-09-29 22:37:21] AUTH: CSV has 13 columns (user=)
+[2026-09-29 22:37:21] AUTH: CSV loaded: clientId=USD... accountId=9007309 env=LIVE redirectUri=http://127.0.0.1:53123/callback
+[2026-09-29 22:37:21] AUTH: Loaded client_id from token file (CSV had none)
+[2026-09-29 22:37:21] AUTH: Loaded client_secret from token file (CSV had none)
+[2026-09-29 22:37:21] AUTH: Loaded token from oauth_token.json (token=JV0TiBp9gwKB6FuMdq1L...)
+[2026-09-29 22:37:21] AUTH: Proactively refreshing access token...
+[2026-09-29 22:37:21] AUTH: Loaded token from oauth_token.json (token=JV0TiBp9gwKB6FuMdq1L...)
+[2026-09-29 22:37:21] AUTH: Refreshing access token...
+[2026-09-29 22:37:21] AUTH: Token saved to oauth_token.json
+[2026-09-29 22:37:21] AUTH: Token refreshed (new token=Er9l50kv5Djk2Q0SCK1w...)
+[2026-09-29 22:37:21] AUTH: Token refreshed proactively (new token=Er9l50kv5Djk2Q0SCK1w...)
+[2026-09-29 22:37:21] AUTH: Credentials ready: clientId=22088_18UMbjtDBgRCBl... accountId=9007309 token=Er9l50kv5Djk2Q0SCK1w...
+[2026-09-29 22:37:21] WS: Connecting to live.ctraderapi.com:5036
+[2026-09-29 22:37:21] WS: Connected to live.ctraderapi.com:5036
+[2026-09-29 22:37:21] AUTH: Application authenticated
+[2026-09-29 22:37:21] AUTH: AccountAuth rejected: Unable to find cTID trader account with id=9007309
+[2026-09-29 22:37:21] AUTH: Account auth failed (accountId=9007309 may be invalid)
+[2026-09-29 22:37:21] WS: Disconnected
+[2026-09-29 22:37:21] AUTH: Loaded token from oauth_token.json (token=Er9l50kv5Djk2Q0SCK1w...)
+[2026-09-29 22:37:21] AUTH: Refreshing access token...
+[2026-09-29 22:37:22] AUTH: Token saved to oauth_token.json
+[2026-09-29 22:37:22] AUTH: Token refreshed (new token=p4f20crwj0kfnpPA1c-J...)
+[2026-09-29 22:37:22] WS: Connecting to live.ctraderapi.com:5036
+[2026-09-29 22:37:22] WS: Connected to live.ctraderapi.com:5036
+[2026-09-29 22:37:22] AUTH: Application authenticated
+[2026-09-29 22:37:22] AUTH: Re-discovering accounts with fresh token...
+[2026-09-29 22:37:22] AUTH: Found 2 accounts for env LIVE
+[2026-09-29 22:37:22] AUTH: Re-discovered accountId: 23706452 (from 2 candidates)
+[2026-09-29 22:37:22] AUTH: Account 23706452 authenticated
+[2026-09-29 22:37:22] AUTH: Login successful after retry (env=LIVE, account=23706452)
+[2026-09-29 22:37:22] SYM: Received 308 symbols
+[2026-09-29 22:37:22] SYM: Stored 193 enabled symbols
+[2026-09-29 22:37:22] SYM: Updated details for 50 symbols
+[2026-09-29 22:37:22] SYM: Updated details for 50 symbols
+[2026-09-29 22:37:22] SYM: Updated details for 50 symbols
+[2026-09-29 22:37:22] SYM: Updated details for 43 symbols
+[2026-09-29 22:37:22] ACC: depositAssetId=16
+[2026-09-29 22:37:22] ACC: Equity initialized from balance: 3.09
+[2026-09-29 22:37:22] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:37:22] TRADE: Requesting position reconciliation
+[2026-09-29 22:37:22] TRADE: Reconcile: 1 open positions
+[2026-09-29 22:37:22] BROKER: Login complete. 193 symbols loaded.
+[2026-09-29 22:37:22] NET: NetworkThread started
+[2026-09-29 22:37:23] ASSET: M7 margin loaded for EUR/USD: marginPerLot=1.1300 (vol=100000)
+[2026-09-29 22:37:23] ASSET: EUR/USD: bid=1.13382 ask=1.13383 LotAmt=1000.0 PipCost=0.100000 MCost=1.1300 Roll=-0.8300/0.1500 Comm=0.0000
+[2026-09-29 22:37:23] ASSET: EUR/USD: bid=1.13382 ask=1.13383 LotAmt=1000.0 PipCost=0.100000 MCost=1.1300 Roll=-0.8300/0.1500 Comm=-0.6803
+[2026-09-29 22:37:23] ASSET: M7 margin loaded for GBP/USD: marginPerLot=1.3200 (vol=100000)
+[2026-09-29 22:37:23] ASSET: GBP/USD: bid=1.32306 ask=1.32307 LotAmt=1000.0 PipCost=0.100000 MCost=1.3200 Roll=-0.4800/-0.3200 Comm=-0.7938
+[2026-09-29 22:37:23] ASSET: M7 margin loaded for XAU/USD: marginPerLot=4.1800 (vol=100)
+[2026-09-29 22:37:23] ASSET: XAU/USD: bid=4178.81000 ask=4178.91000 LotAmt=1.0 PipCost=0.010000 MCost=4.1800 Roll=-0.6172/0.4233 Comm=-2507.3460
+[2026-09-29 22:37:49] ACC: depositAssetId=16
+[2026-09-29 22:37:49] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:38:14] ACC: depositAssetId=16
+[2026-09-29 22:38:14] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:38:40] ACC: depositAssetId=16
+[2026-09-29 22:38:40] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:39:05] ACC: depositAssetId=16
+[2026-09-29 22:39:05] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:39:30] ACC: depositAssetId=16
+[2026-09-29 22:39:30] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[DEBUG] direct write test from BrokerOpen v4.12.0-jev1
+[2026-09-29 22:39:54] BROKER: BrokerOpen - cTraderJev v4.12.0-jev1
+[2026-09-29 22:39:54] WS: Disconnected
+[2026-09-29 22:39:55] ACC: depositAssetId=16
+[2026-09-29 22:39:55] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[DEBUG] direct write test from BrokerOpen v4.12.0-jev1
+[2026-09-29 22:40:15] BROKER: BrokerOpen - cTraderJev v4.12.0-jev1
+[2026-09-29 22:40:15] BROKER: BrokerLogin FIRST: user= type=Real
+[2026-09-29 22:40:15] STATE: Session state reset
+[2026-09-29 22:40:15] AUTH: Instance tag: 'Z1' (shared-account label namespace)
+[2026-09-29 22:40:15] AUTH: Risk config: MaxMarginPct=20% (instance margin budget)
+[2026-09-29 22:40:15] AUTH: Environment set to LIVE (locked)
+[2026-09-29 22:40:15] AUTH: Reading CSV: C:\Users\Administrator\Desktop\z12\Plugin\accounts.csv
+[2026-09-29 22:40:15] AUTH: CSV has 13 columns (user=)
+[2026-09-29 22:40:15] AUTH: CSV loaded: clientId=USD... accountId=9007309 env=LIVE redirectUri=http://127.0.0.1:53123/callback
+[2026-09-29 22:40:15] AUTH: Loaded client_id from token file (CSV had none)
+[2026-09-29 22:40:15] AUTH: Loaded client_secret from token file (CSV had none)
+[2026-09-29 22:40:15] AUTH: Loaded token from oauth_token.json (token=p4f20crwj0kfnpPA1c-J...)
+[2026-09-29 22:40:15] AUTH: Proactively refreshing access token...
+[2026-09-29 22:40:15] AUTH: Loaded token from oauth_token.json (token=p4f20crwj0kfnpPA1c-J...)
+[2026-09-29 22:40:15] AUTH: Refreshing access token...
+[2026-09-29 22:40:16] AUTH: Token saved to oauth_token.json
+[2026-09-29 22:40:16] AUTH: Token refreshed (new token=iAm93mYtgfdonYc1ph_L...)
+[2026-09-29 22:40:16] AUTH: Token refreshed proactively (new token=iAm93mYtgfdonYc1ph_L...)
+[2026-09-29 22:40:16] AUTH: Credentials ready: clientId=22088_18UMbjtDBgRCBl... accountId=9007309 token=iAm93mYtgfdonYc1ph_L...
+[2026-09-29 22:40:16] WS: Connecting to live.ctraderapi.com:5036
+[2026-09-29 22:40:16] WS: Connected to live.ctraderapi.com:5036
+[2026-09-29 22:40:16] AUTH: Application authenticated
+[2026-09-29 22:40:16] AUTH: AccountAuth rejected: Unable to find cTID trader account with id=9007309
+[2026-09-29 22:40:16] AUTH: Account auth failed (accountId=9007309 may be invalid)
+[2026-09-29 22:40:16] WS: Disconnected
+[2026-09-29 22:40:16] AUTH: Loaded token from oauth_token.json (token=iAm93mYtgfdonYc1ph_L...)
+[2026-09-29 22:40:16] AUTH: Refreshing access token...
+[2026-09-29 22:40:16] AUTH: Token saved to oauth_token.json
+[2026-09-29 22:40:16] AUTH: Token refreshed (new token=jcpItFpO7Wh0Fb-25X1E...)
+[2026-09-29 22:40:16] WS: Connecting to live.ctraderapi.com:5036
+[2026-09-29 22:40:16] WS: Connected to live.ctraderapi.com:5036
+[2026-09-29 22:40:16] AUTH: Application authenticated
+[2026-09-29 22:40:16] AUTH: Re-discovering accounts with fresh token...
+[2026-09-29 22:40:16] AUTH: Found 2 accounts for env LIVE
+[2026-09-29 22:40:16] AUTH: Re-discovered accountId: 23706452 (from 2 candidates)
+[2026-09-29 22:40:16] AUTH: Account 23706452 authenticated
+[2026-09-29 22:40:16] AUTH: Login successful after retry (env=LIVE, account=23706452)
+[2026-09-29 22:40:16] SYM: Received 308 symbols
+[2026-09-29 22:40:16] SYM: Stored 193 enabled symbols
+[2026-09-29 22:40:16] SYM: Updated details for 50 symbols
+[2026-09-29 22:40:16] SYM: Updated details for 50 symbols
+[2026-09-29 22:40:17] SYM: Updated details for 50 symbols
+[2026-09-29 22:40:17] SYM: Updated details for 43 symbols
+[2026-09-29 22:40:17] ACC: depositAssetId=16
+[2026-09-29 22:40:17] ACC: Equity initialized from balance: 3.09
+[2026-09-29 22:40:17] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:40:17] TRADE: Requesting position reconciliation
+[2026-09-29 22:40:17] TRADE: Reconcile: 1 open positions
+[2026-09-29 22:40:17] BROKER: Login complete. 193 symbols loaded.
+[2026-09-29 22:40:17] NET: NetworkThread started
+[2026-09-29 22:40:17] SYM: [WARNING] Symbol not found: DE30/EUR
+[2026-09-29 22:40:17] ASSET: M7 margin loaded for USD/JPY: marginPerLot=1.0000 (vol=100000)
+[2026-09-29 22:40:17] ASSET: USD/JPY: bid=157.30300 ask=157.31300 LotAmt=1000.0 PipCost=0.063572 MCost=1.0000 Roll=0.5213/-1.0744 Comm=0.0000
+[2026-09-29 22:40:20] ACC: depositAssetId=16
+[2026-09-29 22:40:20] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:40:20] SYM: [WARNING] Symbol not found: SPX500/USD
+[2026-09-29 22:40:21] SYM: [WARNING] Symbol not found: NAS100/USD
+[2026-09-29 22:40:21] ASSET: USD/JPY: bid=157.30400 ask=157.31400 LotAmt=1000.0 PipCost=0.063571 MCost=1.0000 Roll=0.5213/-1.0744 Comm=-0.6000
+[2026-09-29 22:40:45] ACC: depositAssetId=16
+[2026-09-29 22:40:45] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:40:51] ACC: depositAssetId=16
+[2026-09-29 22:40:51] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:41:10] ACC: depositAssetId=16
+[2026-09-29 22:41:10] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:41:16] ACC: depositAssetId=16
+[2026-09-29 22:41:16] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:41:35] ACC: depositAssetId=16
+[2026-09-29 22:41:35] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:41:41] ACC: depositAssetId=16
+[2026-09-29 22:41:41] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:42:00] ACC: depositAssetId=16
+[2026-09-29 22:42:00] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:42:06] ACC: depositAssetId=16
+[2026-09-29 22:42:06] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:42:25] ACC: depositAssetId=16
+[2026-09-29 22:42:25] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:42:31] ACC: depositAssetId=16
+[2026-09-29 22:42:31] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:42:51] ACC: depositAssetId=16
+[2026-09-29 22:42:51] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:42:56] ACC: depositAssetId=16
+[2026-09-29 22:42:56] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:43:16] ACC: depositAssetId=16
+[2026-09-29 22:43:16] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:43:21] ACC: depositAssetId=16
+[2026-09-29 22:43:21] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:43:41] ACC: depositAssetId=16
+[2026-09-29 22:43:41] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)
+[2026-09-29 22:43:46] ACC: depositAssetId=16
+[2026-09-29 22:43:46] ACC: Balance=3.09 moneyDigits=2 leverage=100000 (1000:1)

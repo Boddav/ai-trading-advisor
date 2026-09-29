@@ -1,0 +1,7 @@
+BrokerOpen v4.12.0-jev1
+dllDir=[C:\Users\Administrator\Desktop\z12\Plugin\]
+log fopen_s("C:\Users\Administrator\Desktop\z12\Plugin\cTraderJev.log","a") = 0 (f=02B9D098)
+log direct write OK
+csLog ptr=6F28C084
+TryEnterCriticalSection(csLog) = 1
+csLog OK - enter+leave succeeded
