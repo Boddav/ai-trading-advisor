@@ -32,6 +32,7 @@
 #define TP_ATR          3.0       // TakeProfit = ATR(14) * TP_ATR
 #define MAX_OPEN        3         // egyszerre nyitott pozíciók (összes asset)
 #define MAX_ATR_PCT     3.0       // ATR(14) ennél nagyobb (% az árhoz) = hibás adat, kihagyja
+#define BREAK_HOUR_UTC  21        // napi piaci szünet órája (UTC): ilyenkor nem kérdez, nem nyit, nem zár (-1 = ki)
 
 #define JEV_TEST_MODE   1         // backtest: 0=nincs Jev, 1=Jev (cache-elve), 2=kérdések exportja,
                                   //           3=KONTROLL: Jev helyett pénzfeldobás (összehasonlításhoz)
@@ -140,6 +141,13 @@ function run()
 		}
 
 		if(!is(TRADEMODE) && JEV_TEST_MODE == 0) continue;
+
+		// napi piaci szünet: a bróker ilyenkor elutasítja a megbízásokat ("Market is closed"),
+		// a nyitott pozíciókat a brókernél lévő SL/TP védi
+		if(is(TRADEMODE) && BREAK_HOUR_UTC >= 0 && hour() == BREAK_HOUR_UTC) {
+			printf("\n[JEV] %s kihagyva: napi piaci szunet (%d:00 UTC)", Asset, BREAK_HOUR_UTC);
+			continue;
+		}
 
 		// saját pozíció erre az assetre
 		string pos = "flat";
