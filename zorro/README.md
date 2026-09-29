@@ -6,6 +6,7 @@
 | `jevtrader/` | `JevTrader.c` — Zorro stratégia, a Jev dönt (H1, EUR/USD, GBP/USD, XAU/USD) |
 | `deep/` | `JevTradeDeep.c` — ugyanez + Depth of Market (kell hozzá a `cTraderJev.dll`) |
 | `tools/` | `calibrate_jev.py` — a Jev válaszainak kiértékelése a backtest adatokon |
+| `kronos/` | Kronos előrejelző modell a Jev mellé: `kronos_bridge.py`, `calibrate_kronos.py`, `start_jev_kronos.bat` ([leírás](kronos/README.md)) |
 | `lotto/` | `lotto_jev.py`, `lotto_popularity.py` — hatoslottó kísérletek |
 | `archive/` | feltöltött anyagok (pl. `grok-workspace.zip`), a működéshez nem kell |
 

@@ -317,6 +317,30 @@ def decide(answers, side, mode=None):
     return "hold", "keep %s (close p=%.2f)" % (side, intent["close"]), bias["long"], bias["short"], intent["close"]
 
 
+# ---------------- Kronos (opcionális, --kronos KÖNYVTÁR) ----------------
+# KRONOS_MODE:
+#   "context"     = a Jev megkapja a Kronos számait is, a Jev dönt (alap)
+#   "agree"       = a Jev dönt, de csak akkor nyit, ha a Kronos is ugyanazt az irányt tartja jobbnak
+#                   és annak TP-first esélye >= MIN_KRONOS
+#   "kronos_only" = csak a Kronos dönt (nincs Jev hívás, ingyenes) — összehasonlításhoz
+KRONOS = None
+KRONOS_MODE = "context"
+MIN_KRONOS = 0.40
+KRONOS_NOTE = (" kronos_forecast comes from Kronos, a candlestick forecasting model: it sampled several future"
+               " price paths; p_tp_first_long/short = share of paths where that trade hit its take profit first,"
+               " p_up = share ending higher, exp_move_atr = average move in ATR units.")
+
+
+def kronos_stats(bars):
+    if KRONOS is None:
+        return None
+    try:
+        return KRONOS.stats(bars)
+    except Exception as e:  # a Kronos hibája ne állítsa le a kereskedést
+        log.error("Kronos hiba: %s", e)
+        return None
+
+
 def handle_decide(req, api_key, call=jev_call, cache=None):
     asset = str(req["asset"])
     tf = str(req.get("tf", "H1"))
@@ -330,7 +354,20 @@ def handle_decide(req, api_key, call=jev_call, cache=None):
                          % (len(bad), bad[0], bars[bad[0]]))
     side = str(req.get("pos", "flat")).lower()
     entry = float(req.get("entry", 0) or 0)
-    k = JevCache.key(req) if cache is not None else None
+    ks = kronos_stats(bars)
+    flat = side not in ("long", "short")
+
+    if ks is not None and KRONOS_MODE == "kronos_only":
+        if not flat:  # nyitott pozíciót az SL/TP kezel
+            return {"action": "hold", "p_long": 0, "p_short": 0, "p_intent": 0, "cached": False,
+                    "reason": "kronos_only: keep %s" % side, "kronos": ks}
+        kans = {"long_tp_first": {"noul": ks["p_tp_first_long"]}, "short_tp_first": {"noul": ks["p_tp_first_short"]}}
+        action, reason, pl, ps, pi = decide(kans, side, mode="tp_first")
+        return {"action": action, "p_long": pl, "p_short": ps, "p_intent": pi, "cached": False,
+                "reason": "Kronos " + reason, "kronos": ks}
+
+    key_req = dict(req, _kronos=(KRONOS.tag if ks is not None else None)) if ks is not None else req
+    k = JevCache.key(key_req) if cache is not None else None
     answers = cache.get(k) if k else None
     cached = answers is not None
     if not cached:
@@ -338,7 +375,13 @@ def handle_decide(req, api_key, call=jev_call, cache=None):
         dom = clean_dom(req.get("dom"))
         if dom:
             state["depth_of_market"] = dom
-        answers = call(api_key, state, build_questions(asset, tf, side, dom=bool(dom))).get("answers", {})
+        questions = build_questions(asset, tf, side, dom=bool(dom))
+        if ks is not None:
+            state["kronos_forecast"] = ks
+            for q in questions.values():
+                if isinstance(q.get("instructions"), dict):
+                    q["instructions"]["inputs"] = q["instructions"].get("inputs", "") + KRONOS_NOTE
+        answers = call(api_key, state, questions).get("answers", {})
         if dom:
             try:
                 with open(DOM_LOG, "a", encoding="utf-8") as f:
@@ -349,8 +392,18 @@ def handle_decide(req, api_key, call=jev_call, cache=None):
         if k:
             cache.put(k, answers)
     action, reason, pl, ps, pi = decide(answers, side)
-    return {"action": action, "p_long": round(pl, 4), "p_short": round(ps, 4),
-            "p_intent": round(pi, 4), "reason": reason, "cached": cached}
+    if ks is not None and KRONOS_MODE == "agree" and action.startswith("open_"):
+        d = action[5:]
+        other = "short" if d == "long" else "long"
+        kp, ko = ks["p_tp_first_" + d], ks["p_tp_first_" + other]
+        if kp < MIN_KRONOS or kp <= ko:
+            reason = "Jev %s, de a Kronos nem ert egyet (%s=%.2f, %s=%.2f)" % (reason, d, kp, other, ko)
+            action = "hold"
+    out = {"action": action, "p_long": round(pl, 4), "p_short": round(ps, 4),
+           "p_intent": round(pi, 4), "reason": reason, "cached": cached}
+    if ks is not None:
+        out["kronos"] = ks
+    return out
 
 
 # ---------------- HTTP szerver ----------------
@@ -548,6 +601,8 @@ def main():
     ap.add_argument("--selftest", action="store_true", help="egy próba Jev hívás, szerver nélkül")
     ap.add_argument("--prefetch", nargs="?", const=DEFAULT_EXPORT, help="Zorro export fájl előtöltése")
     ap.add_argument("--threads", type=int, default=8)
+    ap.add_argument("--kronos", metavar="KRONOS_REPO", help="Kronos bekapcsolása (a klónozott Kronos repó mappája)")
+    ap.add_argument("--kronos-mode", choices=("context", "agree", "kronos_only"), default=None)
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     key = api_key()
@@ -557,6 +612,14 @@ def main():
     if args.prefetch:
         prefetch(os.path.abspath(args.prefetch), key, args.threads)
         return
+    if args.kronos:
+        global KRONOS, KRONOS_MODE
+        sys.path.insert(0, os.path.join(HERE, "..", "kronos"))  # repó elrendezés; a Strategy mappában mellette van
+        from kronos_bridge import KronosForecaster
+        KRONOS = KronosForecaster(args.kronos)
+        if args.kronos_mode:
+            KRONOS_MODE = args.kronos_mode
+        log.info("Kronos betöltve (%s), mód: %s", KRONOS.tag, KRONOS_MODE)
     cache = JevCache()
     log.info("Jev server on 127.0.0.1:%d (model=%s, mode=%s, min_tp_first=%s, min_dir_edge=%s, cache=%d)",
              args.port, JEV_MODEL, QUESTION_MODE, MIN_TP_FIRST, MIN_DIR_EDGE, len(cache))

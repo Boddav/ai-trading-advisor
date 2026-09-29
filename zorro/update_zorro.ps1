@@ -8,7 +8,8 @@ $files = @(
   "server/jev_key.example.txt",
   "jevtrader/JevTrader.c", "deep/JevTradeDeep.c",
   "tools/calibrate_jev.py",
-  "lotto/lotto_jev.py", "lotto/lotto_popularity.py"
+  "lotto/lotto_jev.py", "lotto/lotto_popularity.py",
+  "kronos/kronos_bridge.py", "kronos/calibrate_kronos.py", "kronos/start_jev_kronos.bat"
 )
 if (-not (Test-Path $Strategy)) { Write-Host "Nincs ilyen mappa: $Strategy"; exit 1 }
 foreach ($f in $files) {

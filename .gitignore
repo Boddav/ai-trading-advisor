@@ -9,3 +9,4 @@ zorro/**/jev_cache.jsonl
 zorro/**/jev_gate_log.csv
 zorro/**/jev_dom_log.jsonl
 plugin/cTraderJev/include/builtin_creds.h
+kronos_cache.jsonl
