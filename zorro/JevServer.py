@@ -218,10 +218,32 @@ def build_state(asset, tf, bars, side, entry, digits):
     return state
 
 
-def build_questions(asset, tf, side, mode=None):
+DOM_NOTE = (" depth_of_market is the broker's current order book: best bid/ask, spread in pips, total size of the"
+            " best 5 levels per side, imbalance = (bid size - ask size) / total, and the 5 best levels [price, size].")
+DOM_LOG = os.path.join(HERE, "jev_dom_log.jsonl")
+
+
+def clean_dom(dom):
+    """A JevTradeDeep.c DoM összesítése -> a Jevnek küldött rész (csak számok, max 5 szint)."""
+    if not isinstance(dom, dict):
+        return None
+    out = {}
+    for k in ("best_bid", "best_ask", "spread_pips", "bid_size_top5", "ask_size_top5", "imbalance",
+              "bid_levels", "ask_levels"):
+        if isinstance(dom.get(k), (int, float)):
+            out[k] = dom[k]
+    for k in ("bids", "asks"):
+        if isinstance(dom.get(k), list):
+            out[k] = [[float(x) for x in lv[:2]] for lv in dom[k][:5] if isinstance(lv, list) and len(lv) >= 2]
+    return out if out.get("best_bid") and out.get("best_ask") else None
+
+
+def build_questions(asset, tf, side, mode=None, dom=False):
     mode = mode or QUESTION_MODE
     ctx = ("%s %s closed bars. recent_bars are [open, high, low, close], oldest first. "
            "A trade uses a stop %sx ATR and a target %sx ATR away from entry." % (asset, tf, SL_ATR, TP_ATR))
+    if dom:
+        ctx += DOM_NOTE
     bias = {"type": "choice",
             "instructions": {"question": "Over the next few %s bars, is %s more likely to move up or down?" % (tf, asset),
                              "inputs": ctx},
@@ -313,7 +335,17 @@ def handle_decide(req, api_key, call=jev_call, cache=None):
     cached = answers is not None
     if not cached:
         state = build_state(asset, tf, bars, side, entry, digits)
-        answers = call(api_key, state, build_questions(asset, tf, side)).get("answers", {})
+        dom = clean_dom(req.get("dom"))
+        if dom:
+            state["depth_of_market"] = dom
+        answers = call(api_key, state, build_questions(asset, tf, side, dom=bool(dom))).get("answers", {})
+        if dom:
+            try:
+                with open(DOM_LOG, "a", encoding="utf-8") as f:
+                    f.write(json.dumps({"time": time.strftime("%Y-%m-%d %H:%M:%S"), "asset": asset, "pos": side,
+                                        "last_close": bars[-1][3], "dom": dom, "answers": answers}) + "\n")
+            except OSError as e:
+                log.warning("dom log: %s", e)
         if k:
             cache.put(k, answers)
     action, reason, pl, ps, pi = decide(answers, side)

@@ -186,3 +186,23 @@ def test_gate_endpoint(tmp_path, monkeypatch):
     assert q["type"] == "noul" and "Z12" in q["instructions"]["question"] and "short" in q["instructions"]["question"]
     assert "p" not in bad and "error" in bad
     assert (tmp_path / "gate.csv").read_text().count("Z12,EUR/USD,short") == 2
+
+
+def test_decide_passes_depth_of_market(tmp_path, monkeypatch):
+    monkeypatch.setattr(JS, "QUESTION_MODE", "tp_first")
+    monkeypatch.setattr(JS, "DOM_LOG", str(tmp_path / "dom.jsonl"))
+    jev = FakeJev({"long_tp_first": {"noul": 0.5}, "short_tp_first": {"noul": 0.3}})
+    dom = {"best_bid": 1.13343, "best_ask": 1.13344, "spread_pips": 0.1, "bid_size_top5": 5000000,
+           "ask_size_top5": 3000000, "imbalance": 0.25, "bid_levels": 12, "ask_levels": 11,
+           "bids": [[1.13343, 100000], [1.13342, 500000]], "asks": [[1.13344, 100000]], "junk": "x"}
+    req = {"asset": "EUR/USD", "tf": "H1", "digits": 5, "pos": "flat", "entry": 0, "bars": BARS, "dom": dom}
+    out = JS.handle_decide(req, "KEY", jev, None)
+    state, questions = jev.calls[0]
+    assert out["action"] == "open_long"
+    assert state["depth_of_market"]["imbalance"] == 0.25 and "junk" not in state["depth_of_market"]
+    assert "depth_of_market" in questions["long_tp_first"]["instructions"]["inputs"]
+    assert '"imbalance": 0.25' in (tmp_path / "dom.jsonl").read_text()
+    # without dom: state and question text unchanged
+    JS.handle_decide({**req, "dom": None}, "KEY", jev, None)
+    assert "depth_of_market" not in jev.calls[1][0]
+    assert "depth_of_market" not in jev.calls[1][1]["long_tp_first"]["instructions"]["inputs"]
