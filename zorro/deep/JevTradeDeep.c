@@ -246,9 +246,11 @@ function run()
 				Lots = LotsSlider;
 				Stop = atr14 * SL_ATR;
 				TakeProfit = atr14 * TP_ATR;
-				enterLong();
-				printf("\n[JEV] %s LONG @ %.5f SL=%.5f TP=%.5f (ATR=%.5f)", Asset, priceClose(),
-					priceClose() - Stop, priceClose() + TakeProfit, atr14);
+				if(!enterLong())
+					printf("\n[JEV] %s LONG NEM NYILT MEG (a broker/plugin elutasitotta, lasd a fenti hibat)", Asset);
+				else
+					printf("\n[JEV] %s LONG @ %.5f SL=%.5f TP=%.5f (ATR=%.5f)", Asset, priceClose(),
+						priceClose() - Stop, priceClose() + TakeProfit, atr14);
 			}
 		}
 		else if(strstr(act, "open_short"))
@@ -259,9 +261,11 @@ function run()
 				Lots = LotsSlider;
 				Stop = atr14 * SL_ATR;
 				TakeProfit = atr14 * TP_ATR;
-				enterShort();
-				printf("\n[JEV] %s SHORT @ %.5f SL=%.5f TP=%.5f (ATR=%.5f)", Asset, priceClose(),
-					priceClose() + Stop, priceClose() - TakeProfit, atr14);
+				if(!enterShort())
+					printf("\n[JEV] %s SHORT NEM NYILT MEG (a broker/plugin elutasitotta, lasd a fenti hibat)", Asset);
+				else
+					printf("\n[JEV] %s SHORT @ %.5f SL=%.5f TP=%.5f (ATR=%.5f)", Asset, priceClose(),
+						priceClose() + Stop, priceClose() - TakeProfit, atr14);
 			}
 		}
 		else if(strstr(act, "close"))
