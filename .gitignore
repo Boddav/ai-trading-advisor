@@ -4,7 +4,7 @@ __pycache__/
 .venv/
 .env
 oauth_token.json
-zorro/jev_key.txt
-zorro/jev_cache.jsonl
-zorro/jev_gate_log.csv
-zorro/jev_dom_log.jsonl
+zorro/**/jev_key.txt
+zorro/**/jev_cache.jsonl
+zorro/**/jev_gate_log.csv
+zorro/**/jev_dom_log.jsonl

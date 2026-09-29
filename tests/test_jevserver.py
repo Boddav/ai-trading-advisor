@@ -6,7 +6,7 @@ import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
-spec = importlib.util.spec_from_file_location("JevServer", Path(__file__).parent.parent / "zorro" / "JevServer.py")
+spec = importlib.util.spec_from_file_location("JevServer", Path(__file__).parent.parent / "zorro" / "server" / "JevServer.py")
 JS = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(JS)
 

@@ -20,7 +20,8 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
+sys.path.insert(0, HERE)  # a Zorro Strategy mappában minden egy helyen van
+sys.path.insert(0, os.path.join(HERE, "..", "server"))  # a repóban: zorro/server/
 import JevServer  # noqa: E402  (jev_call, api_key)
 
 HISTORY = 60  # ennyi korábbi húzást lát a Jev

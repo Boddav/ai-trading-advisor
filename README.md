@@ -106,16 +106,18 @@ python -m advisor.main
 
 ## Zorro változat (`zorro/`)
 
+A mappák áttekintése és az egy-parancsos frissítés: [`zorro/README.md`](zorro/README.md).
+
 Ugyanez a Jev-döntés Zorróból, a cTrader pluginon keresztül, a MLDRIVEN/UltOsc
 mintájára (lite-C `http_transfer` → helyi Python szerver):
 
 | Fájl | Szerep |
 |---|---|
-| `zorro/JevTrader.c` | Zorro stratégia: H1 baronként elküldi az utolsó 200 bart, a válasz alapján `enterLong` / `enterShort` / `exitLong+exitShort`, ATR Stop/TakeProfit |
-| `zorro/JevServer.py` | Helyi szerver (port 5003): megkérdezi a Jevet, visszaadja: `open_long` / `open_short` / `close` / `hold` |
-| `zorro/start_jev.bat` | Szerver indítása (a régi 5003-as folyamatot leállítja) |
-| `zorro/test_jev.bat` | Egy próba Jev hívás + szerver ellenőrzés |
-| `zorro/prefetch_jev.bat` | Backtest kérdések párhuzamos előtöltése |
+| `zorro/jevtrader/JevTrader.c` | Zorro stratégia: H1 baronként elküldi az utolsó 200 bart, a válasz alapján `enterLong` / `enterShort` / `exitLong+exitShort`, ATR Stop/TakeProfit |
+| `zorro/server/JevServer.py` | Helyi szerver (port 5003): megkérdezi a Jevet, visszaadja: `open_long` / `open_short` / `close` / `hold` |
+| `zorro/server/start_jev.bat` | Szerver indítása (a régi 5003-as folyamatot leállítja) |
+| `zorro/server/test_jev.bat` | Egy próba Jev hívás + szerver ellenőrzés |
+| `zorro/server/prefetch_jev.bat` | Backtest kérdések párhuzamos előtöltése |
 
 Telepítés Windowson (Python 3.7+ elég, külön csomag nem kell):
 

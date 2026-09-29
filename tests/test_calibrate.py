@@ -6,8 +6,9 @@ import sys
 from pathlib import Path
 
 ZORRO = Path(__file__).parent.parent / "zorro"
+sys.path.insert(0, str(ZORRO / "server"))
 sys.path.insert(0, str(ZORRO))
-spec = importlib.util.spec_from_file_location("calibrate_jev", ZORRO / "calibrate_jev.py")
+spec = importlib.util.spec_from_file_location("calibrate_jev", ZORRO / "tools" / "calibrate_jev.py")
 CJ = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(CJ)
 JS = CJ.JS

@@ -20,7 +20,8 @@ import sys
 from collections import defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
+sys.path.insert(0, HERE)  # a Zorro Strategy mappában minden egy helyen van
+sys.path.insert(0, os.path.join(HERE, "..", "server"))  # a repóban: zorro/server/
 import JevServer as JS  # noqa: E402
 
 RR = JS.TP_ATR / JS.SL_ATR  # 2.0

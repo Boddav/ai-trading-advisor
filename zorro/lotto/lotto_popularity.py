@@ -133,6 +133,7 @@ def tickets(beta, count, rng):
 def jev_check(beta, rng):
     """A Jev meg tudja-e mondani, mely szelvények népszerűek? Az adatból tudjuk a választ."""
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server"))
     import JevServer  # noqa: E402
     key = JevServer.api_key()
     combos = sorted((sorted(rng.sample(range(1, 46), 6)) for _ in range(3000)), key=lambda c: score(beta, c))
