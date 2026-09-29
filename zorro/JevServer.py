@@ -11,6 +11,9 @@
 # Endpoints:
 #   POST /decide   {"asset","tf","digits","pos","entry","bars":[[o,h,l,c],...]}
 #                  -> {"action","p_long","p_short","p_intent","reason"}
+#   POST /gate     {"asset","side":"long|short","strategy","digits","bars":[[o,h,l,c],...]}
+#                  -> {"p": esély, "reason"}   (a cTrader plugin JevGate modulja hívja, lásd
+#                  ctrader-zorro-plugin: jevgate/; ott dől el a MinProb alapján, hogy mehet-e)
 #   GET  /health
 #
 # API kulcs: jev_key.txt a szerver mellett, vagy TYPESAFE_API_KEY környezeti változó.
@@ -62,6 +65,8 @@ TYPESAFE_URL = os.environ.get("TYPESAFE_BASE_URL", "https://api.typesafe.ai").rs
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE_FILE = os.path.join(HERE, "jev_cache.jsonl")
+GATE_LOG = os.path.join(HERE, "jev_gate_log.csv")
+GATE_ATR = 1.0  # /gate kérdés: 1xATR a kötés javára előbb, mint 1xATR ellene
 DEFAULT_EXPORT = os.path.join(HERE, "..", "Data", "JevExport.jsonl")
 log = logging.getLogger("jevserver")
 
@@ -317,6 +322,60 @@ def handle_decide(req, api_key, call=jev_call, cache=None):
 
 
 # ---------------- HTTP szerver ----------------
+def gate_question(strategy, asset, side):
+    up = side == "long"
+    return {"entry_ok": {
+        "type": "noul",
+        "instructions": {
+            "question": "The trading strategy %s wants to open a %s %s position at last_close now. Will price move "
+                        "%sx atr14 %s (in favour of the trade) before it moves %sx atr14 %s (against it)?"
+                        % (strategy or "?", side, asset, GATE_ATR, "up" if up else "down",
+                           GATE_ATR, "down" if up else "up"),
+            "inputs": "%s H1 closed bars. recent_bars are [open, high, low, close], oldest first." % asset,
+        },
+        "criteria": {"true": "the move in favour comes first", "false": "the move against comes first"},
+    }}
+
+
+def handle_gate(req, api_key, call=jev_call, cache=None):
+    asset = str(req["asset"])
+    side = str(req.get("side", "")).lower()
+    if side not in ("long", "short"):
+        raise ValueError("side legyen long vagy short, jött: %r" % side)
+    strategy = str(req.get("strategy", ""))[:32]
+    digits = int(req.get("digits", 5))
+    bars = [[float(x) for x in b[:4]] for b in req["bars"]]
+    if len(bars) < 50:
+        raise ValueError("legalább 50 bar kell, jött: %d" % len(bars))
+    if any(min(b) <= 0 or b[1] < b[2] for b in bars):
+        raise ValueError("hibás gyertya (0 ár vagy high<low)")
+    k = JevCache.key({"gate": 1, "asset": asset, "side": side, "strategy": strategy, "bars": bars}) \
+        if cache is not None else None
+    answers = cache.get(k) if k else None
+    cached = answers is not None
+    if not cached:
+        state = build_state(asset, "H1", bars, "flat", 0, digits)
+        answers = call(api_key, state, gate_question(strategy, asset, side)).get("answers", {})
+        if k:
+            cache.put(k, answers)
+    p = _noul(answers.get("entry_ok"))
+    return {"p": round(p, 4), "reason": "%s %s %s: p=%.2f" % (strategy, asset, side, p), "cached": cached}
+
+
+def log_gate(req, out, path=None):
+    path = path or GATE_LOG
+    try:
+        new = not os.path.exists(path)
+        with open(path, "a", encoding="utf-8") as f:
+            if new:
+                f.write("time,strategy,asset,side,p,last_close\n")
+            last = req["bars"][-1][3] if req.get("bars") else ""
+            f.write("%s,%s,%s,%s,%.4f,%s\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), req.get("strategy", ""),
+                                                req.get("asset", ""), req.get("side", ""), out["p"], last))
+    except OSError as e:
+        log.warning("gate log: %s", e)
+
+
 def make_handler(api_key, call=jev_call, cache=None):
     class Handler(BaseHTTPRequestHandler):
         def _reply(self, code, body):
@@ -334,6 +393,18 @@ def make_handler(api_key, call=jev_call, cache=None):
                 self._reply(404, {"error": "not found"})
 
         def do_POST(self):
+            if self.path == "/gate":
+                try:
+                    req = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))
+                    out = handle_gate(req, api_key, call, cache)
+                    log.info("GATE %s %s %s -> p=%.2f%s", req.get("strategy"), req.get("asset"), req.get("side"),
+                             out["p"], " [cache]" if out["cached"] else "")
+                    log_gate(req, out)
+                    return self._reply(200, out)
+                except (JevError, ValueError, KeyError, TypeError, IndexError) as e:
+                    log.error("gate failed: %s", e)
+                    # nincs "p" mező -> a plugin FailOpen szerint dönt
+                    return self._reply(200, {"error": str(e)[:200]})
             if self.path != "/decide":
                 return self._reply(404, {"error": "not found"})
             try:

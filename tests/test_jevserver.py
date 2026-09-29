@@ -160,3 +160,29 @@ def test_rejects_zero_price_bars():
     finally:
         srv.shutdown()
     assert out["action"] == "error" and "0 ár" in out["reason"] and jev.calls == []
+
+
+def test_gate_endpoint(tmp_path, monkeypatch):
+    monkeypatch.setattr(JS, "GATE_LOG", str(tmp_path / "gate.csv"))
+    jev = FakeJev({"entry_ok": {"type": "noul", "noul": 0.43}})
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), JS.make_handler("KEY", jev, JS.JevCache(str(tmp_path / "c.jsonl"))))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    port = srv.server_address[1]
+
+    def post(path, body):
+        req = urllib.request.Request("http://127.0.0.1:%d%s" % (port, path), data=json.dumps(body).encode(),
+                                     method="POST")
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return json.loads(r.read())
+    try:
+        body = {"asset": "EUR/USD", "side": "short", "strategy": "Z12", "digits": 5, "tf": "H1", "bars": BARS}
+        out = post("/gate", body)
+        again = post("/gate", body)
+        bad = post("/gate", {**body, "side": "up"})
+    finally:
+        srv.shutdown()
+    assert out["p"] == 0.43 and out["cached"] is False and again["cached"] is True
+    q = jev.calls[0][1]["entry_ok"]
+    assert q["type"] == "noul" and "Z12" in q["instructions"]["question"] and "short" in q["instructions"]["question"]
+    assert "p" not in bad and "error" in bad
+    assert (tmp_path / "gate.csv").read_text().count("Z12,EUR/USD,short") == 2
