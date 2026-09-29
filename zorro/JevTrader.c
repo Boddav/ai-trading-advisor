@@ -216,6 +216,11 @@ function run()
 		else if(strstr(act, "error") || !act[0])
 			printf("\n[JEV] %s HIBA: %s", Asset, resp);
 		else
-			printf("\n[JEV] %s HOLD (%s)", Asset, pos);
+		{
+			if(strstr(pos, "flat"))
+				printf("\n[JEV] %s VAR - nem nyit (flat)", Asset);
+			else
+				printf("\n[JEV] %s TART - %s pozicio nyitva marad, SL/TP ervenyben", Asset, pos);
+		}
 	}
 }
