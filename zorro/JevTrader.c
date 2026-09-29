@@ -14,6 +14,9 @@
 //   2 = csak kiírja a kérdéseket (Data\JevExport.jsonl), nem kereskedik. Utána
 //       prefetch_jev.bat párhuzamosan lekérdezi őket -> a Test (mód 1) percek helyett
 //       másodpercek alatt lefut. Nagy időszakhoz ajánlott.
+//   3 = KONTROLL: ugyanazok a szabályok (ATR SL/TP, MAX_OPEN), de az irányt pénzfeldobás
+//       dönti el, minden pozíció nélküli baron nyit. Ha ez is hasonló eredményt hoz,
+//       a Jev nem tett hozzá semmit. Szerver nem kell hozzá.
 //   0 = backtestben nincs Jev.
 // =================================================================
 
@@ -30,7 +33,8 @@
 #define MAX_OPEN        3         // egyszerre nyitott pozíciók (összes asset)
 #define MAX_ATR_PCT     3.0       // ATR(14) ennél nagyobb (% az árhoz) = hibás adat, kihagyja
 
-#define JEV_TEST_MODE   1         // backtest: 0=nincs Jev, 1=Jev (cache-elve), 2=kérdések exportja
+#define JEV_TEST_MODE   1         // backtest: 0=nincs Jev, 1=Jev (cache-elve), 2=kérdések exportja,
+                                  //           3=KONTROLL: Jev helyett pénzfeldobás (összehasonlításhoz)
 #define CFG_STARTDATE   20260601  // backtest kezdete (ÉÉÉÉHHNN)
 #define CFG_ENDDATE     0         // backtest vége, 0 = mostanáig
 #define EXPORT_FILE     "Data\\JevExport.jsonl"
@@ -116,6 +120,7 @@ function run()
 
 	if(is(INITRUN) && !is(TRADEMODE) && JEV_TEST_MODE == 2)
 		file_delete(EXPORT_FILE);
+	if(is(INITRUN)) seed(12345);   // a kontroll mód ismételhető legyen
 	Capital = CFG_CAPITAL;
 	Leverage = CFG_LEVERAGE;
 	Hedge = 0;
@@ -130,7 +135,7 @@ function run()
 		if(is(LOOKBACK)) continue;
 		if(!dataOK(atr14))
 		{
-			printf("\n[JEV] %s kihagyva: hibás előtörténet (0 ár / hiányzó bar), ATR=%.5f", Asset, atr14);
+			printf("\n[JEV] %s kihagyva: hibas elotortenet (0 ar / hianyzo bar), ATR=%.5f", Asset, atr14);
 			continue;
 		}
 
@@ -156,14 +161,26 @@ function run()
 			continue;
 		}
 
-		string resp = http_transfer(JEV_URL, buildRequest(pos, entry));
-		if(!resp)
+		string resp = "";
+		string act = "hold";
+		if(!is(TRADEMODE) && JEV_TEST_MODE == 3)
 		{
-			printf("\n[JEV] %s: nincs válasz a szervertől (fut a start_jev.bat?)", Asset);
-			continue;
+			// kontroll: pénzfeldobás, csak pozíció nélkül nyit, zárni az SL/TP zár
+			if(strstr(pos, "flat"))
+			{
+				if(random(1) > 0.5) act = "open_long"; else act = "open_short";
+			}
 		}
-
-		string act = getAction(resp);
+		else
+		{
+			resp = http_transfer(JEV_URL, buildRequest(pos, entry));
+			if(!resp)
+			{
+				printf("\n[JEV] %s: nincs valasz a szervertol (fut a start_jev.bat?)", Asset);
+				continue;
+			}
+			act = getAction(resp);
+		}
 		if(strstr(act, "open_long"))
 		{
 			if(countOpenAll() >= MAX_OPEN)
@@ -197,7 +214,7 @@ function run()
 			printf("\n[JEV] %s CLOSE (%s)", Asset, pos);
 		}
 		else if(strstr(act, "error") || !act[0])
-			printf("\n[JEV] %s hiba: %s", Asset, resp);
+			printf("\n[JEV] %s HIBA: %s", Asset, resp);
 		else
 			printf("\n[JEV] %s HOLD (%s)", Asset, pos);
 	}
