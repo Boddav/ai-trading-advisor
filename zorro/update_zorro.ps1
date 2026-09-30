@@ -6,7 +6,7 @@ $base = "https://raw.githubusercontent.com/Boddav/ai-trading-advisor/main/zorro"
 $files = @(
   "server/JevServer.py", "server/start_jev.bat", "server/test_jev.bat", "server/prefetch_jev.bat",
   "server/jev_key.example.txt",
-  "jevtrader/JevTrader.c", "deep/JevTradeDeep.c",
+  "jevtrader/JevTrader.c", "deep/JevTradeDeep.c", "deep/JevTradeDeepNoJev.c",
   "tools/calibrate_jev.py", "tools/calibrate_regime.py",
   "lotto/lotto_jev.py", "lotto/lotto_popularity.py",
   "kronos/kronos_bridge.py", "kronos/calibrate_kronos.py", "kronos/start_jev_kronos.bat"
