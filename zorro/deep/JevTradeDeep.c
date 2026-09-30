@@ -3,6 +3,9 @@
 //
 // Ugyanaz, mint a JevTrader.c, de élő kereskedésben (Trade) a cTrader DoM összesítését is
 // elküldi: legjobb bid/ask, spread, a legjobb 5 szint mennyisége mindkét oldalon, egyensúly.
+// JEV_MODE "regime": a Jev csak azt ítéli meg, trendel, oldalaz vagy kaotikus a piac; az irányt
+// a szerver kódja választja (trendben a trend irányába, oldalazásnál a sáv széléről vissza).
+// Mérés előtte: python calibrate_regime.py  (a JevExport.jsonl-en, lásd zorro/tools).
 // Ehhez a cTraderJev.dll plugin kell (jevdepth modul, GET_BOOK), lásd ctrader-zorro-plugin:
 // source/repos/zorro-plugin-jev/. Az [Account] sorban a Plugin oszlop: cTraderJev.dll
 // Backtestben NINCS DoM (a History fájlok nem tárolják), ott úgy fut, mint a JevTrader.
@@ -35,6 +38,9 @@
 #define CFG_LEVERAGE    500
 
 #define JEV_URL         "http://127.0.0.1:5003/decide"
+#define JEV_MODE        "regime"  // "regime" = a Jev csak a piac jellegét mondja meg (trendel/oldalaz/kaotikus),
+                                  //            az irányt a szerver kódja választja;
+                                  // ""       = a szerver alap módja (tp_first), mint a JevTrader.c
 #define JEV_BARS        200       // ennyi lezárt bar megy a Jevnek
 #define SL_ATR          1.5       // Stop = ATR(14) * SL_ATR
 #define TP_ATR          3.0       // TakeProfit = ATR(14) * TP_ATR
@@ -123,6 +129,11 @@ string buildRequest(string pos, var entry)
 		if(i > 0) strcat(postBuf, ",");
 	}
 	strcat(postBuf, "]");
+	if(strlen(JEV_MODE) > 0) {
+		strcat(postBuf, ",\"mode\":\"");
+		strcat(postBuf, JEV_MODE);
+		strcat(postBuf, "\"");
+	}
 	strcat(postBuf, buildDom());
 	strcat(postBuf, "}");
 	return postBuf;

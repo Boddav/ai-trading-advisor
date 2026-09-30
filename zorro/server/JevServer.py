@@ -317,6 +317,127 @@ def decide(answers, side, mode=None):
     return "hold", "keep %s (close p=%.2f)" % (side, intent["close"]), bias["long"], bias["short"], intent["close"]
 
 
+# ---------------- "regime" mód (a kérés "mode":"regime" mezője, pl. JevTradeDeep.c) ----------------
+# A Jev NEM kereskedik, csak egy ítéletet ad: milyen most a piac (trendel / oldalaz / kaotikus).
+# Minden számot a kód számol ki (ATR-hez viszonyítva, hogy az assetek és időszakok összevethetők
+# legyenek), és a kód dönt az irányról:
+#   trending -> a trend irányába (sma20 vs sma50 és a 20 bares hozam egyezik)
+#   ranging  -> a 20 bares sáv széléről vissza (range_pos20 <= RANGE_EDGE -> long, >= 1-RANGE_EDGE -> short)
+#   choppy   -> nem nyit
+# Nyitott pozíciónál nincs Jev hívás: az SL/TP zár.
+REGIMES = ("trending", "ranging", "choppy")
+MIN_REGIME = 0.50   # ennyi kell a legvalószínűbb rezsimre, különben nem nyit
+RANGE_EDGE = 0.20
+
+
+def regime_features(bars):
+    """Determinisztikus, ATR-hez viszonyított jellemzők (ezt a kód számolja, nem a Jev)."""
+    closes = [b[3] for b in bars]
+    a14 = atr(bars, 14)
+    a100 = atr(bars, 100) if len(bars) > 100 else None
+    if not a14:
+        return None
+    last = closes[-1]
+
+    def ret_atr(n):
+        return round((last - closes[-1 - n]) / a14, 2) if len(closes) > n else None
+
+    def vs(ma):
+        return round((last - ma) / a14, 2) if ma is not None else None
+
+    s20, s50, s200 = sma(closes, 20), sma(closes, 50), sma(closes, 200)
+    s20_prev = sma(closes[:-5], 20) if len(closes) > 25 else None
+    hi20, lo20 = max(b[1] for b in bars[-20:]), min(b[2] for b in bars[-20:])
+    path = sum(abs(b - a) for a, b in zip(closes[-21:], closes[-20:]))
+    return {
+        "returns_atr": {"last1": ret_atr(1), "last5": ret_atr(5), "last20": ret_atr(20), "last50": ret_atr(50)},
+        "close_vs_sma_atr": {"sma20": vs(s20), "sma50": vs(s50), "sma200": vs(s200)},
+        "sma20_slope_atr_5bars": round((s20 - s20_prev) / a14, 2) if s20_prev is not None else None,
+        "sma20_above_sma50": (s20 > s50) if s20 is not None and s50 is not None else None,
+        "range_pos20": round((last - lo20) / (hi20 - lo20), 2) if hi20 > lo20 else None,
+        "range20_atr": round((hi20 - lo20) / a14, 2),
+        "atr14_vs_atr100": round(a14 / a100, 2) if a100 else None,
+        "efficiency_ratio20": round(abs(closes[-1] - closes[-21]) / path, 2) if path > 0 else None,
+        "recent_bars_atr": [[round((x - last) / a14, 2) for x in b] for b in bars[-24:]],
+    }
+
+
+def regime_questions(asset, tf, dom=False):
+    ctx = ("%s %s closed bars. All values are relative: price moves are in units of atr14, "
+           "recent_bars_atr are [open, high, low, close] minus the last close, divided by atr14, oldest first. "
+           "efficiency_ratio20 = net move / total path over 20 bars (1 = straight line, 0 = no progress). "
+           "atr14_vs_atr100 > 1 means more volatile than usual." % (asset, tf))
+    if dom:
+        ctx += (" depth_of_market: imbalance = (bid size - ask size) / total of the broker's best 5 levels,"
+                " spread_atr = current spread / atr14.")
+    return {"regime": {
+        "type": "choice",
+        "instructions": {"question": "Which market regime will %s most likely be in over the next ~20 %s bars?" % (asset, tf),
+                         "inputs": ctx},
+        "criteria": {"trending": "price keeps moving persistently in one direction",
+                     "ranging": "price oscillates between support and resistance and reverts to the middle",
+                     "choppy": "erratic, noisy or news-driven moves without a usable structure"}}}
+
+
+def regime_policy(answers, feats):
+    """-> (action, reason, regime, p)"""
+    p = _probs(answers.get("regime"), REGIMES)
+    r = max(REGIMES, key=lambda k: p[k])
+    probs = " ".join("%s=%.2f" % (k[:5], p[k]) for k in REGIMES)
+    if p[r] < MIN_REGIME:
+        return "hold", "regime unclear (%s)" % probs, r, p[r]
+    if r == "trending":
+        up, r20 = feats.get("sma20_above_sma50"), (feats["returns_atr"].get("last20") or 0)
+        if up is True and r20 > 0:
+            return "open_long", "trending -> with trend up (%s)" % probs, r, p[r]
+        if up is False and r20 < 0:
+            return "open_short", "trending -> with trend down (%s)" % probs, r, p[r]
+        return "hold", "trending but no clear trend direction (%s)" % probs, r, p[r]
+    if r == "ranging":
+        pos = feats.get("range_pos20")
+        if pos is not None and pos <= RANGE_EDGE:
+            return "open_long", "ranging, at range low %.2f -> revert up (%s)" % (pos, probs), r, p[r]
+        if pos is not None and pos >= 1 - RANGE_EDGE:
+            return "open_short", "ranging, at range high %.2f -> revert down (%s)" % (pos, probs), r, p[r]
+        return "hold", "ranging, mid-range %.2f (%s)" % (pos if pos is not None else -1, probs), r, p[r]
+    return "hold", "choppy -> stand aside (%s)" % probs, r, p[r]
+
+
+def handle_regime(req, api_key, call=jev_call, cache=None):
+    asset, tf = str(req["asset"]), str(req.get("tf", "H1"))
+    side = str(req.get("pos", "flat")).lower()
+    if side in ("long", "short"):
+        return {"action": "hold", "p_long": 0, "p_short": 0, "p_intent": 0, "cached": False,
+                "reason": "regime mode: keep %s, SL/TP manages it" % side}
+    bars = [[float(x) for x in b[:4]] for b in req["bars"]]
+    if len(bars) < 50:
+        raise ValueError("legalább 50 bar kell, jött: %d" % len(bars))
+    if any(min(b) <= 0 or b[1] < b[2] for b in bars):
+        raise ValueError("hibás gyertya (0 ár vagy high<low) -> nincs Jev kérdés")
+    feats = regime_features(bars)
+    if feats is None:
+        raise ValueError("nincs ATR (kevés bar)")
+    k = JevCache.key(req) if cache is not None else None
+    answers = cache.get(k) if k else None
+    cached = answers is not None
+    if not cached:
+        state = {"symbol": asset, "timeframe": tf}
+        state.update(feats)
+        dom = clean_dom(req.get("dom"))
+        if dom:
+            a14 = atr(bars, 14)
+            state["depth_of_market"] = {"imbalance": dom.get("imbalance"),
+                                        "spread_atr": round((dom["best_ask"] - dom["best_bid"]) / a14, 3)}
+        answers = call(api_key, state, regime_questions(asset, tf, dom=bool(dom))).get("answers", {})
+        if k:
+            cache.put(k, answers)
+    action, reason, r, p = regime_policy(answers, feats)
+    pl = p if action == "open_long" else 0.0
+    ps = p if action == "open_short" else 0.0
+    return {"action": action, "p_long": round(pl, 4), "p_short": round(ps, 4), "p_intent": round(p, 4),
+            "regime": r, "reason": reason, "cached": cached}
+
+
 # ---------------- Kronos (opcionális, --kronos KÖNYVTÁR) ----------------
 # KRONOS_MODE:
 #   "context"     = a Jev megkapja a Kronos számait is, a Jev dönt (alap)
@@ -342,6 +463,8 @@ def kronos_stats(bars):
 
 
 def handle_decide(req, api_key, call=jev_call, cache=None):
+    if req.get("mode") == "regime":
+        return handle_regime(req, api_key, call, cache)
     asset = str(req["asset"])
     tf = str(req.get("tf", "H1"))
     digits = int(req.get("digits", 5))
