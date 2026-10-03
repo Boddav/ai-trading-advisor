@@ -1,11 +1,11 @@
 name: Jev trade
 
 on:
-  schedule:
-    # H1 bars: shortly after each hour, Sun 22:00 UTC – Fri 22:00 UTC (forex week).
-    # GitHub may delay scheduled runs by several minutes.
-    - cron: "3 * * * 1-5"
-    - cron: "3 22,23 * * 0"
+  # LEÁLLÍTVA: az óránkénti ütemezés kikapcsolva. Visszakapcsolás: tedd vissza ezt a két sort
+  # az "on:" alá:
+  # schedule:
+  #   - cron: "3 * * * 1-5"
+  #   - cron: "3 22,23 * * 0"
   workflow_dispatch:
   # Only so GitHub registers this workflow when the file changes; the job is skipped on push.
   push:
